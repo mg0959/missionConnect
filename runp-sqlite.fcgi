@@ -1,5 +1,5 @@
 #!flask/bin/python
-from flipflop import WSGIServer
+from flup.server.fcgi import WSGIServer
 from app import app
 
 if __name__ == '__main__':
