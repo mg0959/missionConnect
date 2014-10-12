@@ -3,9 +3,20 @@ from wtforms import TextField, BooleanField, TextAreaField, StringField
 from wtforms.validators import Required, Length, DataRequired
 from app.models import User
 
-class LoginForm(Form):
+class OpenidLoginForm(Form):
     openid = TextField('openid', validators = [Required()])
     remember_me = BooleanField('remember_me', default = False)
+
+class LoginForm(Form):
+    email = TextField('email', validators=[Required()])
+    password = TextField('password', validators=[Required()])
+    remember_me = BooleanField('remember_me', default = False)
+
+class SignupForm(Form):
+    nickname = TextField('nickname', validators=[Required()])
+    email = TextField('email', validators=[Required()])
+    password = TextField('password', validators=[Required()])
+    password_confirm = TextField('password', validators=[Required()])
 
 class EditForm(Form):
     nickname = TextField('nickname', validators = [Required()])

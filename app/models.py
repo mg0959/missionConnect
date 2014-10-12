@@ -1,5 +1,7 @@
 from app import db, app
 from hashlib import md5
+import uuid
+import hashlib
 
 import sys
 if sys.version_info >= (3, 0):
@@ -19,6 +21,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key = True)
     nickname = db.Column(db.String(64), index = True, unique = True)
     email = db.Column(db.String(120), index = True, unique = True)
+    password = db.Column(db.String(89))
     role = db.Column(db.SmallInteger, default = ROLE_USER)
     posts = db.relationship('Post', backref = 'author', lazy = 'dynamic')
     about_me = db.Column(db.String(140))
@@ -60,7 +63,14 @@ class User(db.Model):
         
     def avatar(self, size):
         return  'http://www.gravatar.com/avatar/'+md5(self.email).hexdigest() +'?d=mm&s='+str(size)
-    
+
+    def set_password(self, password):
+        self.password = User.hash_password(password)
+
+    def check_password(self, user_password):
+        password, salt = self.password.split(':')
+        return password == hashlib.sha224(salt.encode() + user_password.encode()).hexdigest()
+ 
     def __repr__(self):
         return '<User %r>' % (self.nickname)
 
@@ -75,6 +85,13 @@ class User(db.Model):
                 break
             version += 1
         return new_nickname
+
+    @staticmethod
+    def hash_password(password):
+        # uuid is used to generate a random number
+        salt = uuid.uuid4().hex
+        return hashlib.sha224(salt.encode() + password.encode()).hexdigest() + ':' + salt
+   
             
 
 

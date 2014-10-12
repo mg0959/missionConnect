@@ -2,10 +2,10 @@ from flask import render_template, flash, redirect, session, url_for, request, g
 from flask.ext.login import login_user, logout_user, current_user, login_required
 from datetime import datetime
 from app import app, db, lm, oid
-from forms import LoginForm, EditForm, PostForm, SearchForm
+from forms import LoginForm, EditForm, PostForm, SearchForm, OpenidLoginForm, SignupForm
 from models import User, ROLE_USER, ROLE_ADMIN, Post
 from config import POSTS_PER_PAGE, MAX_SEARCH_RESULTS
-from emails import follower_notification
+from emails import follower_notification, signup_notification
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -20,15 +20,51 @@ def index(page=1):
         db.session.commit()
         flash('Your post is now live!')
         return redirect(url_for('index'))
-    posts = g.user.followed_posts().paginate(page, POSTS_PER_PAGE, False)
+    #only followed posts
+    #posts = g.user.followed_posts().paginate(page, POSTS_PER_PAGE, False)
+    #all posts
+    posts = Post.query.order_by(Post.timestamp.desc()).paginate(page, POSTS_PER_PAGE, False)
     return render_template('index.html',
         title = 'Home',
         form=form,
         posts = posts)
 
 @app.route('/login', methods = ['GET', 'POST'])
-@oid.loginhandler
 def login():
+    if g.user is not None and g.user.is_authenticated():
+        return redirect(url_for('index'))
+    form = LoginForm()
+    if form.validate_on_submit():
+        session['remember_me'] = form.remember_me.data
+        #return oid.try_login(form.openid.data, ask_for = ['nickname', 'email'])
+        return validateLogin(form.email.data, form.password.data)
+    return render_template('login.html', 
+        title = 'Sign In',
+        form = form)
+
+def validateLogin(email, password):
+    print "after login"
+    if email is None or email == "":
+        flash('Invalid login. Please try again.')
+        return redirect(url_for('login'))
+    user = User.query.filter_by(email = email).first()
+    if user is None:
+        flash('Invalid email. Please try again')
+        return redirect(url_for('login'))
+    if not user.check_password(password):
+        flash('Invalid password. Please try again')
+        return redirect(url_for('login'))
+    remember_me = False
+    if 'remember_me' in session:
+        remember_me = session['remember_me']
+        session.pop('remember_me', None)
+    login_user(user, remember = remember_me)
+    return redirect(request.args.get('next') or url_for('index'))
+
+
+@app.route('/loginOpenID', methods = ['GET', 'POST'])
+@oid.loginhandler
+def oid_login():
     if g.user is not None and g.user.is_authenticated():
         return redirect(url_for('index'))
     form = LoginForm()
@@ -44,6 +80,47 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for('index'))
+
+@app.route('/register', methods =['GET', 'POST'])
+def register():
+    if g.user is not None and g.user.is_authenticated():
+        flash('Please logout before registering a new user.')
+        return redirect(url_for('index'))
+    form = SignupForm()
+    if form.validate_on_submit():
+        # check if email in use
+        if User.query.filter_by(email = form.email.data).first() is not None:
+            flash('Email already in use.  Please use another.')
+            form.email.errors.append('Invalid Email')
+            return redirect(url_for('register'))
+        # check nickname
+        if User.query.filter_by(nickname = form.nickname.data).first() is not None:
+            flash('Nickname already in use.  Please use another.')
+            form.nickname.errors.append('Invalid Nickname')
+            return redirect(url_for('register'))
+        # check passwords
+        if form.password.data != form.password_confirm.data:
+            flash('Passwords do not match!')
+            form.password_confirm.errors.append('Password does not match')
+            return redirect(url_for('register'))
+
+        #Sign up user
+        u = User(nickname=form.nickname.data, email=form.email.data)
+        u.set_password(form.password.data)
+        db.session.add(u)
+        db.session.commit()
+        db.session.add(u.follow(u))
+        db.session.commit()        
+        flash('You are now signed up!')
+        #send emaiil
+        signup_notification(u)
+        #redirect to login
+        return redirect(url_for('login'))
+    return render_template('signup.html', 
+        title = 'Register',
+        form = form)
+    
+    
 
 @app.route('/user/<nickname>')
 @app.route('/user/<nickname>/<int:page>')
@@ -136,8 +213,10 @@ def search_results(query):
 def load_user(id):
     return User.query.get(int(id))
 
+
 @oid.after_login
-def after_login(resp):
+def after_oidlogin(resp):
+    print "after login"
     if resp.email is None or resp.email == "":
         flash('Invalid login. Please try again.')
         return redirect(url_for('login'))

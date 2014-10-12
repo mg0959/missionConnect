@@ -8,6 +8,15 @@
         <form class="form-horizontal" action="" method="post" name="login">
             {{ form.hidden_tag() }}
             <div class="control-group">
+                <label class="control-label" for="nickname">Nickname</label>
+                <div class="controls">
+                    {{form.nickname(size=40, placeholder="nickname")}}
+                    {% for error in form.nickname.errors %}
+                        <span class="help-inline">{{ error }};</span><br>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="control-group">
                 <label class="control-label" for="email">Email</label>
                 <div class="controls">
                     {{form.email(size=40, placeholder="Email", type="email")}}
@@ -26,20 +35,17 @@
                 </div>
             </div>
             <div class="control-group">
+                <label class="control-label" for="password">Confirm Password</label>
                 <div class="controls">
-                    <label class="checkbox" for="remember_me">
-                    {{ form.remember_me }} Remember Me
-                    </label>
+                    {{form.password_confirm(size=40, placeholder="password", type="password")}}
+                    {% for error in form.password_confirm.errors %}
+                        <span class="help-inline">{{ error }};</span><br>
+                    {% endfor %}
                 </div>
             </div>
             <div class="control-group">
                 <div class="controls">
-                    <a href="{{url_for('register')}}">Don't have a username.  Sign Up Here!</a>
-                </div>
-            </div>
-            <div class="control-group">
-                <div class="controls">
-                    <input class="btn btn-primary" type="submit" value="Sign In">
+                    <input class="btn btn-primary" type="submit" value="Sign Up">
                 </div>
             </div>
         </form>

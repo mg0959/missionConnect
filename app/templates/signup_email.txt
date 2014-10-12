@@ -1,0 +1,11 @@
+Dear {{ user.nickname }},
+
+Welcome to MissionConnect!
+
+Tell us about yourself!. Click on the following link to visit edit your profile:
+
+{{ url_for("edit", _external=True) }}
+
+Regards,
+
+The MissionConnect Team

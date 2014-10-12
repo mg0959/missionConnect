@@ -111,5 +111,19 @@ class TestCase(unittest.TestCase):
         assert f3 == [p4, p3]
         assert f4 == [p4]
 
+    def test_password(self):
+        u1 = User(nickname = 'john', email = 'john@example.com', password=User.hash_password('secret'))
+        db.session.add(u1)
+        db.session.commit()
+        print u1.password
+        assert u1.password != User.hash_password('secret')
+        assert u1.check_password('secret') == True
+        assert u1.check_password('easyPassword') == False
+        
+        u1.set_password('new_password_SoLongWithStrangeChars!2#$@:')
+        assert u1.password != User.hash_password('new_password_SoLongWithStrangeChars!2#$@:')
+        assert u1.check_password('new_password_SoLongWithStrangeChars!2#$@:') == True
+        assert u1.check_password('secret') == False 
+
 if __name__ == '__main__':
     unittest.main()

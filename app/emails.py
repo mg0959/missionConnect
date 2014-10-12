@@ -26,3 +26,10 @@ def follower_notification(followed, follower):
                                user=followed, follower=follower),
                render_template("follower_email.html",
                                user=followed, follower=follower))
+
+def signup_notification(user):
+    send_email("[MissionConnect] Welcome to MissionConnect",
+               ADMINS[0],
+               [user.email],
+               render_template("signup_email.txt", user=user),
+               render_template("signup_email.html", user=user))

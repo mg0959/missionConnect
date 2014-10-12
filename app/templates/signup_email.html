@@ -1,0 +1,14 @@
+<p>Dear {{ user.nickname }},</p>
+<p>Welcome to MissionConnect</p>
+<p>Tell us about yourself!  Click  <a href="{{ url_for('edit', _external=True)}}">here</a> to update your profile</p>
+<table>
+    <tr valign="top">
+        <td><img src="{{ user.avatar(50) }}"></td>
+        <td>
+            <a href="{{ url_for('user', nickname=user.nickname, _external=True)}}">{{ user.nickname }}</a><br />
+            About me...
+        </td>
+    </tr>
+</table>
+<p>Regards,</p>
+<p>The <code>missionConnect</code> Team</p>
