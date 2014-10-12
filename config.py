@@ -29,7 +29,7 @@ ADMINS = ['mg0959@gmail.com']
 
 
 # pagination
-POSTS_PER_PAGE = 3
+POSTS_PER_PAGE = 5
 
 # full text search database
 WHOOSH_BASE = os.path.join(basedir, 'search.db')
