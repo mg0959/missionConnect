@@ -1,0 +1,32 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+
+{% block content %}
+    <h1>Explore!</h1>
+    {% include 'flash.html' %}
+    
+    <p>See what others are doing!</p>
+
+    <div class="well">
+    <p>This page will contain a clickable world map to find other people you are not following.</p>
+    <p>It will also have (on the side?) a feed with posts (Partitioned for 2 types? (1) general posts and (2) prayer requests seperate?)
+    from non-followed people sorted by post time.</p>
+    </div>
+    <p>These are posts from people you don't follow...</p>
+
+    {% for post in posts.items %}
+        {% include 'post.html' %}
+    {% endfor %}
+    <ul class="pager">
+        {% if posts.has_prev %}
+        <li class="previous"><a href="{{ url_for('index', page=posts.prev_num) }}">Newer posts</a></li>
+        {% else %}
+        <li class="previous disabled"><a href="#">Newer posts</a></li>
+        {% endif %}
+        {% if posts.has_next %}
+        <li class="next"><a href="{{ url_for('index', page=posts.next_num) }}">Older posts</a></li>
+        {% else %}
+        <li class="next disabled"><a href="#">Older posts</a></li>
+        {% endif %}
+    </ul>
+{% endblock %}

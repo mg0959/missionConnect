@@ -21,8 +21,8 @@ MAIL_SERVER = 'smtp.googlemail.com'
 MAIL_PORT = 465
 MAIL_USE_TLS = False
 MAIL_USE_SSL = True
-MAIL_USERNAME = os.environ.get('MAIL_USERNAME') #no.reply.missionconnect@gmail.com
-MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD') #mc2014mc
+MAIL_USERNAME = "no.reply.missionconnect@gmail.com" #os.environ.get('MAIL_USERNAME')
+MAIL_PASSWORD = "mc2014mc" #os.environ.get('MAIL_PASSWORD')
 
 # administrator list
 ADMINS = ['mg0959@gmail.com']

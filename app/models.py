@@ -60,6 +60,9 @@ class User(db.Model):
 
     def followed_posts(self):
         return Post.query.join(followers, (followers.c.followed_id == Post.user_id)).filter(followers.c.follower_id == self.id).order_by(Post.timestamp.desc())
+
+    def unfollowed_posts(self):
+        return Post.query.join(followers, (followers.c.followed_id != Post.user_id)).filter(followers.c.follower_id == self.id).order_by(Post.timestamp.desc())
         
     def avatar(self, size):
         return  'http://www.gravatar.com/avatar/'+md5(self.email).hexdigest() +'?d=mm&s='+str(size)

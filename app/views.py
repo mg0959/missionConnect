@@ -8,31 +8,40 @@ from config import POSTS_PER_PAGE, MAX_SEARCH_RESULTS
 from emails import follower_notification, signup_notification
 
 
+@app.route('/')
+@app.route('/index')
+@app.route('/mc')
+def atMC():
+    return render_template('atMC.html',
+        title = '@MC',
+        page = 'atMC')
+
 @app.route('/', methods=['GET', 'POST'])
-@app.route('/index', methods=['GET', 'POST'])
-@app.route('/index/<int:page>', methods=['GET', 'POST'])
+@app.route('/home', methods=['GET', 'POST'])
+@app.route('/home/<int:page>', methods=['GET', 'POST'])
 @login_required
-def index(page=1):
+def home(page=1):
     form = PostForm()
     if form.validate_on_submit():
         post = Post(body = form.post.data, timestamp = datetime.utcnow(), author = g.user)
         db.session.add(post)
         db.session.commit()
         flash('Your post is now live!')
-        return redirect(url_for('index'))
+        return redirect(url_for('home'))
     #only followed posts
-    #posts = g.user.followed_posts().paginate(page, POSTS_PER_PAGE, False)
+    posts = g.user.followed_posts().paginate(page, POSTS_PER_PAGE, False)
     #all posts
-    posts = Post.query.order_by(Post.timestamp.desc()).paginate(page, POSTS_PER_PAGE, False)
-    return render_template('index.html',
+    #posts = Post.query.order_by(Post.timestamp.desc()).paginate(page, POSTS_PER_PAGE, False)
+    return render_template('home.html',
         title = 'Home',
         form=form,
-        posts = posts)
+        posts = posts,
+        page = 'home')
 
 @app.route('/login', methods = ['GET', 'POST'])
 def login():
     if g.user is not None and g.user.is_authenticated():
-        return redirect(url_for('index'))
+        return redirect(url_for('home'))
     form = LoginForm()
     if form.validate_on_submit():
         session['remember_me'] = form.remember_me.data
@@ -40,7 +49,8 @@ def login():
         return validateLogin(form.email.data, form.password.data)
     return render_template('login.html', 
         title = 'Sign In',
-        form = form)
+        form = form,
+        page = 'login')
 
 def validateLogin(email, password):
     print "after login"
@@ -59,14 +69,14 @@ def validateLogin(email, password):
         remember_me = session['remember_me']
         session.pop('remember_me', None)
     login_user(user, remember = remember_me)
-    return redirect(request.args.get('next') or url_for('index'))
+    return redirect(request.args.get('next') or url_for('home'))
 
 
 @app.route('/loginOpenID', methods = ['GET', 'POST'])
 @oid.loginhandler
 def oid_login():
     if g.user is not None and g.user.is_authenticated():
-        return redirect(url_for('index'))
+        return redirect(url_for('home'))
     form = LoginForm()
     if form.validate_on_submit():
         session['remember_me'] = form.remember_me.data
@@ -79,13 +89,13 @@ def oid_login():
 @app.route('/logout')
 def logout():
     logout_user()
-    return redirect(url_for('index'))
+    return redirect(url_for('home'))
 
 @app.route('/register', methods =['GET', 'POST'])
 def register():
     if g.user is not None and g.user.is_authenticated():
         flash('Please logout before registering a new user.')
-        return redirect(url_for('index'))
+        return redirect(url_for('home'))
     form = SignupForm()
     if form.validate_on_submit():
         # check if email in use
@@ -129,11 +139,12 @@ def user(nickname, page=1):
     user = User.query.filter_by(nickname = nickname).first()
     if user == None:
         flash('User ' + nickname + ' not found.')
-        return redirect(url_for('index'))
+        return redirect(url_for('home'))
     posts = user.posts.paginate(page, POSTS_PER_PAGE, False)
     return render_template('user.html',
         user = user,
-        posts = posts)
+        posts = posts,
+        page='user')
 
 @app.route('/edit', methods = ['GET', 'POST'])
 @login_required
@@ -158,7 +169,7 @@ def follow(nickname):
     user = User.query.filter_by(nickname = nickname).first()
     if user == None:
         flash('User ' + nickname + ' not found.')
-        return redirect(url_for('index'))
+        return redirect(url_for('home'))
     if user == g.user:
         flash('You can\'t follow yourself!')
         return redirect(url_for('user', nickname = nickname))
@@ -179,7 +190,7 @@ def unfollow(nickname):
     user = User.query.filter_by(nickname = nickname).first()
     if user == None:
         flash('User ' + nickname + ' not found.')
-        return redirect(url_for('index'))
+        return redirect(url_for('home'))
     if user == g.user:
         flash('You can\'t unfollow yourself!')
         return redirect(url_for('user', nickname = nickname))
@@ -192,11 +203,33 @@ def unfollow(nickname):
     flash('You have stopped following ' + nickname + '.')
     return redirect(url_for('user', nickname = nickname))
 
+
+@app.route('/explore')
+@app.route('/explore/<int:page>')
+@login_required
+def explore(page = 1):
+    #only unollowed posts
+    posts = g.user.unfollowed_posts().paginate(page, POSTS_PER_PAGE, False)
+    #all posts
+    #posts = Post.query.order_by(Post.timestamp.desc()).paginate(page, POSTS_PER_PAGE, False)
+    return render_template('explore.html',
+        title = 'Explore',
+        posts = posts,
+        page = 'explore')
+
+@app.route('/pray')
+@login_required
+def pray():
+    return render_template('pray.html',
+        title = 'Pray',
+        page = 'pray')
+
+
 @app.route('/search', methods=['POST'])
 @login_required
 def search():
     if not g.search_form.validate_on_submit():
-        return redirect(url_for('index'))
+        return redirect(url_for('home'))
     return redirect(url_for('search_results', query=g.search_form.search.data))
 
 @app.route('/search_results/<query>')
@@ -237,7 +270,7 @@ def after_oidlogin(resp):
         remember_me = session['remember_me']
         session.pop('remember_me', None)
     login_user(user, remember = remember_me)
-    return redirect(request.args.get('next') or url_for('index'))
+    return redirect(request.args.get('next') or url_for('home'))
 
 @app.before_request
 def before_request():
