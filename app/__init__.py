@@ -26,7 +26,7 @@ mail = Mail(app)
 # set up logging
 if not app.debug and MAIL_SERVER !='':
     import logging
-    from logging.handlers import SMTPHandler, RotatingFileHandler
+    from logging.handlers import SMTPHandler
     credentials = None
     if MAIL_USERNAME or MAIL_PASSWORD:
         credentials = (MAIL_USERNAME, MAIL_PASSWORD)

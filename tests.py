@@ -62,36 +62,51 @@ class TestCase(unittest.TestCase):
         assert u1.followed.count() == 0
         assert u2.followers.count() == 0
 
+    def test_delete_post(self):
+        # create a user and a post
+        u = User(nickname='john', email='john@example.com')
+        p = Post(body='test post', author=u, timestamp=datetime.utcnow())
+        db.session.add(u)
+        db.session.add(p)
+        db.session.commit()
+        # query the post and destroy the session
+        p = Post.query.get(1)
+        db.session.remove()
+        # delete the post using a new session
+        db.session = db.create_scoped_session()
+        db.session.delete(p)
+        db.session.commit()
+
     def test_follow_posts(self):
         # make four users
-        u1 = User(nickname = 'john', email = 'john@example.com')
-        u2 = User(nickname = 'susan', email = 'susan@example.com')
-        u3 = User(nickname = 'mary', email = 'mary@example.com')
-        u4 = User(nickname = 'david', email = 'david@example.com')
+        u1 = User(nickname='john', email='john@example.com')
+        u2 = User(nickname='susan', email='susan@example.com')
+        u3 = User(nickname='mary', email='mary@example.com')
+        u4 = User(nickname='david', email='david@example.com')
         db.session.add(u1)
         db.session.add(u2)
         db.session.add(u3)
         db.session.add(u4)
         # make four posts
         utcnow = datetime.utcnow()
-        p1 = Post(body = "post from john", author = u1, timestamp = utcnow + timedelta(seconds = 1))
-        p2 = Post(body = "post from susan", author = u2, timestamp = utcnow + timedelta(seconds = 2))
-        p3 = Post(body = "post from mary", author = u3, timestamp = utcnow + timedelta(seconds = 3))
-        p4 = Post(body = "post from david", author = u4, timestamp = utcnow + timedelta(seconds = 4))
+        p1 = Post(body="post from john", author=u1, timestamp=utcnow + timedelta(seconds=1))
+        p2 = Post(body="post from susan", author=u2, timestamp=utcnow + timedelta(seconds=2))
+        p3 = Post(body="post from mary", author=u3, timestamp=utcnow + timedelta(seconds=3))
+        p4 = Post(body="post from david", author=u4, timestamp=utcnow + timedelta(seconds=4))
         db.session.add(p1)
         db.session.add(p2)
         db.session.add(p3)
         db.session.add(p4)
         db.session.commit()
         # setup the followers
-        u1.follow(u1) # john follows himself
-        u1.follow(u2) # john follows susan
-        u1.follow(u4) # john follows david
-        u2.follow(u2) # susan follows herself
-        u2.follow(u3) # susan follows mary
-        u3.follow(u3) # mary follows herself
-        u3.follow(u4) # mary follows david
-        u4.follow(u4) # david follows himself
+        u1.follow(u1)  # john follows himself
+        u1.follow(u2)  # john follows susan
+        u1.follow(u4)  # john follows david
+        u2.follow(u2)  # susan follows herself
+        u2.follow(u3)  # susan follows mary
+        u3.follow(u3)  # mary follows herself
+        u3.follow(u4)  # mary follows david
+        u4.follow(u4)  # david follows himself
         db.session.add(u1)
         db.session.add(u2)
         db.session.add(u3)
@@ -111,11 +126,60 @@ class TestCase(unittest.TestCase):
         assert f3 == [p4, p3]
         assert f4 == [p4]
 
+    def test_unfollowed_posts(self):
+        # make four users
+        u1 = User(nickname='john', email='john@example.com')
+        u2 = User(nickname='susan', email='susan@example.com')
+        u3 = User(nickname='mary', email='mary@example.com')
+        u4 = User(nickname='david', email='david@example.com')
+        db.session.add(u1)
+        db.session.add(u2)
+        db.session.add(u3)
+        db.session.add(u4)
+        # make four posts
+        utcnow = datetime.utcnow()
+        p1 = Post(body="post from john", author=u1, timestamp=utcnow + timedelta(seconds=1))
+        p2 = Post(body="post from susan", author=u2, timestamp=utcnow + timedelta(seconds=2))
+        p3 = Post(body="post from mary", author=u3, timestamp=utcnow + timedelta(seconds=3))
+        p4 = Post(body="post from david", author=u4, timestamp=utcnow + timedelta(seconds=4))
+        db.session.add(p1)
+        db.session.add(p2)
+        db.session.add(p3)
+        db.session.add(p4)
+        db.session.commit()
+        # setup the followers
+        u1.follow(u1)  # john follows himself
+        u1.follow(u2)  # john follows susan
+        u1.follow(u4)  # john follows david
+        u2.follow(u2)  # susan follows herself
+        u2.follow(u3)  # susan follows mary
+        u3.follow(u3)  # mary follows herself
+        u3.follow(u4)  # mary follows david
+        u4.follow(u4)  # david follows himself
+        db.session.add(u1)
+        db.session.add(u2)
+        db.session.add(u3)
+        db.session.add(u4)
+        db.session.commit()
+        # check the followed posts of each user
+        f1 = u1.unfollowed_posts().all()
+        f2 = u2.unfollowed_posts().all()
+        f3 = u3.unfollowed_posts().all()
+        f4 = u4.unfollowed_posts().all()
+        
+        assert len(f1) == 1
+        assert len(f2) == 2
+        assert len(f3) == 2
+        assert len(f4) == 3
+        assert f1 == [p3]
+        assert f2 == [p4, p1]
+        assert f3 == [p2, p1]
+        assert f4 == [p3, p2, p1]
+        
     def test_password(self):
         u1 = User(nickname = 'john', email = 'john@example.com', password=User.hash_password('secret'))
         db.session.add(u1)
         db.session.commit()
-        print u1.password
         assert u1.password != User.hash_password('secret')
         assert u1.check_password('secret') == True
         assert u1.check_password('easyPassword') == False

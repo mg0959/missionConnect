@@ -12,6 +12,7 @@ else:
 
 ROLE_USER = 0
 ROLE_ADMIN = 1
+ROLE_MISSIONARY = 2
 
 followers = db.Table('followers',
                     db.Column('follower_id', db.Integer, db.ForeignKey('user.id')),
@@ -62,7 +63,9 @@ class User(db.Model):
         return Post.query.join(followers, (followers.c.followed_id == Post.user_id)).filter(followers.c.follower_id == self.id).order_by(Post.timestamp.desc())
 
     def unfollowed_posts(self):
-        return Post.query.join(followers, (followers.c.followed_id != Post.user_id)).filter(followers.c.follower_id == self.id).order_by(Post.timestamp.desc())
+
+        followed_posts_ids = map(lambda given_post: given_post.id, self.followed_posts().all())
+        return Post.query.filter(~Post.id.in_(followed_posts_ids)).order_by(Post.timestamp.desc())
         
     def avatar(self, size):
         return  'http://www.gravatar.com/avatar/'+md5(self.email).hexdigest() +'?d=mm&s='+str(size)
