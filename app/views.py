@@ -4,8 +4,9 @@ from datetime import datetime
 from app import app, db, lm, oid
 from forms import LoginForm, EditForm, PostForm, SearchForm, OpenidLoginForm, SignupForm
 from models import User, ROLE_USER, ROLE_ADMIN, Post
-from config import POSTS_PER_PAGE, MAX_SEARCH_RESULTS
+from config import POSTS_PER_PAGE, MAX_SEARCH_RESULTS, DATABASE_QUERY_TIMEOUT, SQLALCHEMY_RECORD_QUERIES
 from emails import follower_notification, signup_notification
+from flask.ext.sqlalchemy import get_debug_queries
 
 
 @app.route('/')
@@ -280,6 +281,14 @@ def before_request():
         db.session.add(g.user)
         db.session.commit()
         g.search_form = SearchForm()
+        
+@app.after_request
+def after_request(response):
+    if SQLALCHEMY_RECORD_QUERIES:
+        for query in get_debug_queries():
+            if query.duration >= DATABASE_QUERY_TIMEOUT:
+                app.logger.warning("SLOW QUERY: %s\nParameters: %s\nDuration: %fs\nContext: %s\n" % (query.statement, query.parameters, query.duration, query.context))
+    return response
 
 @app.errorhandler(404)
 def not_found_error(error):

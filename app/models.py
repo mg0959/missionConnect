@@ -2,9 +2,10 @@ from app import db, app
 from hashlib import md5
 import uuid
 import hashlib
+import re
 
 import sys
-if sys.version_info >= (3, 0):
+if sys.version_info >= (3, 0): # pragma: no cover
     enable_search = False
 else:
     enable_search = True
@@ -19,6 +20,8 @@ followers = db.Table('followers',
                     db.Column('followed_id', db.Integer, db.ForeignKey('user.id')))
 
 class User(db.Model):
+    __searchable__ = ['nickname']
+    
     id = db.Column(db.Integer, primary_key = True)
     nickname = db.Column(db.String(64), index = True, unique = True)
     email = db.Column(db.String(120), index = True, unique = True)
@@ -77,9 +80,13 @@ class User(db.Model):
         password, salt = self.password.split(':')
         return password == hashlib.sha224(salt.encode() + user_password.encode()).hexdigest()
  
-    def __repr__(self):
+    def __repr__(self): # pragma: no cover
         return '<User %r>' % (self.nickname)
 
+    @staticmethod
+    def make_valid_nickname(nickname):
+        return re.sub('[^a-zA-Z0-9_\.]', '', nickname)
+    
     @staticmethod
     def make_unique_nickname(nickname):
         if User.query.filter_by(nickname=nickname).first() == None:
@@ -100,10 +107,11 @@ class User(db.Model):
    
             
 
-
-REQUEST_NONE = 0
-REQUEST_PRAYER = 1
-REQUEST_FINANCIAL = 2
+#Post types
+GENERAL_POST = 1
+ENCOURAGEMENT = 2
+PRAYER_POST = 3
+BLOG_POST = 4
 
 
 class Post(db.Model):
@@ -113,13 +121,14 @@ class Post(db.Model):
     id = db.Column(db.Integer, primary_key = True)
     body = db.Column(db.String(140))
     timestamp = db.Column(db.DateTime)
-    request = db.Column(db.SmallInteger, default = REQUEST_NONE)
+    postType = db.Column(db.SmallInteger, default = GENERAL_POST)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
-    def __repr__(self):
+    def __repr__(self): # pragma: no cover
         return '<Post %r>' % (self.body)
 
 if enable_search:
     whooshalchemy.whoosh_index(app, Post)
+    whooshalchemy.whoosh_index(app, User)
 
 
