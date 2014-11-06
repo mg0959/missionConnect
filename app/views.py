@@ -3,7 +3,7 @@ from flask.ext.login import login_user, logout_user, current_user, login_require
 from datetime import datetime
 from app import app, db, lm, oid
 from forms import LoginForm, EditForm, PostForm, SearchForm, OpenidLoginForm, SignupForm
-from models import User, ROLE_USER, ROLE_ADMIN, Post
+from models import User, ROLE_USER, ROLE_ADMIN, Post, GENERAL_POST, PRAYER_POST
 from config import POSTS_PER_PAGE, MAX_SEARCH_RESULTS, DATABASE_QUERY_TIMEOUT, SQLALCHEMY_RECORD_QUERIES
 from emails import follower_notification, signup_notification
 from flask.ext.sqlalchemy import get_debug_queries
@@ -23,15 +23,19 @@ def atMC():
 @login_required
 def home(page=1):
     form = PostForm()
+    form.postType.choices = [(GENERAL_POST, "Post"), (PRAYER_POST, "Prayer")]
     if form.validate_on_submit():
-        post = Post(body = form.post.data, timestamp = datetime.utcnow(), author = g.user)
+        post = Post(body = form.post.data, timestamp = datetime.utcnow(), author = g.user, postType=form.postType.data)
         db.session.add(post)
         db.session.commit()
-        flash('Your post is now live!')
+        if form.postType.data == PRAYER_POST:    
+            flash('Your prayer post is now live!')
+        else: flash('Your post is now live!')
         return redirect(url_for('home'))
     #only followed posts
     posts = g.user.followed_posts().paginate(page, POSTS_PER_PAGE, False)
     #all posts
+    form.postType.data =GENERAL_POST
     #posts = Post.query.order_by(Post.timestamp.desc()).paginate(page, POSTS_PER_PAGE, False)
     return render_template('home.html',
         title = 'Home',
@@ -219,10 +223,14 @@ def explore(page = 1):
         page = 'explore')
 
 @app.route('/pray')
+@app.route('/pray/<int:page>')
 @login_required
-def pray():
+def pray(page = 1):
+    posts = Post.getPrayer().order_by(Post.timestamp.desc()).paginate(page, POSTS_PER_PAGE, False)
+    print "pray posts", posts.items
     return render_template('pray.html',
         title = 'Pray',
+        posts = posts,
         page = 'pray')
 
 
@@ -243,6 +251,11 @@ def search_results(query):
     return render_template('search_results.html',
                            query=query,
                            results=results)
+
+@app.route('/upload')
+def upload():
+  pass  
+
 @lm.user_loader
 def load_user(id):
     return User.query.get(int(id))

@@ -1,5 +1,5 @@
 from flask.ext.wtf import Form
-from wtforms import TextField, BooleanField, TextAreaField, StringField
+from wtforms import TextField, BooleanField, TextAreaField, StringField, RadioField
 from wtforms.validators import Required, Length, DataRequired
 from app.models import User
 
@@ -39,6 +39,7 @@ class EditForm(Form):
 
 class PostForm(Form):
     post = TextField('post', validators = [Required()])
+    postType = RadioField('postType', coerce=int, validators = [Required()])
     
 class SearchForm(Form):
     search = StringField('search', validators=[DataRequired()])

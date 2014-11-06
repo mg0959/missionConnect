@@ -113,7 +113,6 @@ ENCOURAGEMENT = 2
 PRAYER_POST = 3
 BLOG_POST = 4
 
-
 class Post(db.Model):
     __searchable__ = ['body']
 
@@ -126,6 +125,10 @@ class Post(db.Model):
 
     def __repr__(self): # pragma: no cover
         return '<Post %r>' % (self.body)
+
+    @staticmethod
+    def getPrayer():
+        return Post.query.filter(Post.postType == PRAYER_POST)
 
 if enable_search:
     whooshalchemy.whoosh_index(app, Post)

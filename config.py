@@ -38,3 +38,6 @@ MAX_SEARCH_RESULTS = 50
 # records times of db calls
 SQLALCHEMY_RECORD_QUERIES = True
 DATABASE_QUERY_TIMEOUT = 0.5 # slow database query threshold (in seconds)
+
+# location of user data files
+USER_DATE_DIR = os.path.join(basedir, 'user_data')

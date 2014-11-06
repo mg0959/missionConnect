@@ -1,9 +1,9 @@
-<table class="table table-hover">
+<table class="table table-hover {% if post.postType == 3 %} prayerRow {% endif %}">
     <tr>
         <td width="70px"><a href="{{ url_for('user', nickname=post.author.nickname) }}"><img src="{{ post.author.avatar(70) }}" /></a></td>
         <td>
             <p><a href="{{ url_for('user', nickname=post.author.nickname) }}">{{ post.author.nickname }}</a> said {{ momentjs(post.timestamp).fromNow() }}:</p>
-            <p><strong>{{ post.body }}</strong></p>
+            <p>{% if post.postType == 3 %}<strong>Pray: </strong>{% endif %}{{ post.body }}</p>
         </td>
     </tr>
 </table>
