@@ -1,12 +1,15 @@
-from flask import render_template, flash, redirect, session, url_for, request, g
+from flask import render_template, flash, redirect, session, url_for, request, g, send_from_directory
 from flask.ext.login import login_user, logout_user, current_user, login_required
 from datetime import datetime
 from app import app, db, lm, oid
 from forms import LoginForm, EditForm, PostForm, SearchForm, OpenidLoginForm, SignupForm
-from models import User, ROLE_USER, ROLE_ADMIN, Post, GENERAL_POST, PRAYER_POST
+from models import User, ROLE_USER, ROLE_ADMIN, Post, GENERAL_POST, PRAYER_POST, Photo
 from config import POSTS_PER_PAGE, MAX_SEARCH_RESULTS, DATABASE_QUERY_TIMEOUT, SQLALCHEMY_RECORD_QUERIES
+from config import UPLOAD_IMG_DIR, ALLOWED_EXTENSIONS
 from emails import follower_notification, signup_notification
 from flask.ext.sqlalchemy import get_debug_queries
+from werkzeug import secure_filename
+import os
 
 
 @app.route('/')
@@ -29,8 +32,8 @@ def home(page=1):
         db.session.add(post)
         db.session.commit()
         if form.postType.data == PRAYER_POST:    
-            flash('Your prayer post is now live!')
-        else: flash('Your post is now live!')
+            flash('Your prayer post is now live!', 'info')
+        else: flash('Your post is now live!', 'info')
         return redirect(url_for('home'))
     #only followed posts
     posts = g.user.followed_posts().paginate(page, POSTS_PER_PAGE, False)
@@ -60,14 +63,14 @@ def login():
 def validateLogin(email, password):
     print "after login"
     if email is None or email == "":
-        flash('Invalid login. Please try again.')
+        flash('Invalid login. Please try again.', 'error')
         return redirect(url_for('login'))
     user = User.query.filter_by(email = email).first()
     if user is None:
-        flash('Invalid email. Please try again')
+        flash('Invalid email. Please try again', 'error')
         return redirect(url_for('login'))
     if not user.check_password(password):
-        flash('Invalid password. Please try again')
+        flash('Invalid password. Please try again', 'error')
         return redirect(url_for('login'))
     remember_me = False
     if 'remember_me' in session:
@@ -99,23 +102,23 @@ def logout():
 @app.route('/register', methods =['GET', 'POST'])
 def register():
     if g.user is not None and g.user.is_authenticated():
-        flash('Please logout before registering a new user.')
+        flash('Please logout before registering a new user.', 'warning')
         return redirect(url_for('home'))
     form = SignupForm()
     if form.validate_on_submit():
         # check if email in use
         if User.query.filter_by(email = form.email.data).first() is not None:
-            flash('Email already in use.  Please use another.')
+            flash('Email already in use.  Please use another.', 'error')
             form.email.errors.append('Invalid Email')
             return redirect(url_for('register'))
         # check nickname
         if User.query.filter_by(nickname = form.nickname.data).first() is not None:
-            flash('Nickname already in use.  Please use another.')
+            flash('Nickname already in use.  Please use another.', 'error')
             form.nickname.errors.append('Invalid Nickname')
             return redirect(url_for('register'))
         # check passwords
         if form.password.data != form.password_confirm.data:
-            flash('Passwords do not match!')
+            flash('Passwords do not match!', 'error')
             form.password_confirm.errors.append('Password does not match')
             return redirect(url_for('register'))
 
@@ -126,14 +129,15 @@ def register():
         db.session.commit()
         db.session.add(u.follow(u))
         db.session.commit()        
-        flash('You are now signed up!')
+        flash('You are now signed up!', 'success')
         #send emaiil
         signup_notification(u)
         #redirect to login
         return redirect(url_for('login'))
     return render_template('signup.html', 
         title = 'Register',
-        form = form)
+        form = form,
+        page = 'signup')
     
     
 
@@ -143,7 +147,7 @@ def register():
 def user(nickname, page=1):
     user = User.query.filter_by(nickname = nickname).first()
     if user == None:
-        flash('User ' + nickname + ' not found.')
+        flash('User ' + nickname + ' not found.', 'error')
         return redirect(url_for('home'))
     posts = user.posts.paginate(page, POSTS_PER_PAGE, False)
     return render_template('user.html',
@@ -155,38 +159,68 @@ def user(nickname, page=1):
 @login_required
 def edit():
     form = EditForm(g.user.nickname)
-    if form.validate_on_submit():
+    if request.method == 'POST': avatar_img_file = request.files[form.avatar_img.name]
+    else: avatar_img_file = None
+    print "avatar_img_file:", avatar_img_file
+    if form.validate_on_submit(avatar_img_file):            
         g.user.nickname = form.nickname.data
         g.user.about_me = form.about_me.data
         db.session.add(g.user)
         db.session.commit()
-        flash('Your changes have been saved.')
+        if form.avatar_img.data:
+            oldPic = g.user.photos.filter(Photo.isAvatar == True).first()
+            f = request.files[form.avatar_img.name]
+            pic = Photo(fname = "", timestamp = datetime.utcnow(), owner = g.user, isAvatar = True)
+            if oldPic:
+                oldPic.isAvatar = False
+                db.session.add(oldPic)
+            db.session.add(pic)
+            db.session.commit()
+            try:
+                print "pic id", pic.id
+                pic.fname = (str(pic.id)+"."+f.filename.split(".")[-1])
+                f.save(os.path.join(UPLOAD_IMG_DIR, pic.fname))
+                db.session.add(pic)
+                db.session.delete(oldPic)
+                db.session.commit()
+                oldPic.delete_files()
+            except:
+                db.session.rollback()
+                if oldPic:
+                    oldPic.isAvatar=True
+                    db.session.add(oldPic)
+                db.session.delete(pic)
+                db.session.commit()
+                flash('Unable to update photo.', 'error')
+                
+        flash('Your changes have been saved.', 'info')
         return redirect(url_for('edit'))
     else:
         form.nickname.data = g.user.nickname
         form.about_me.data = g.user.about_me
     return render_template('edit.html',
-        form = form)
+        form = form,
+        user = g.user)
 
 @app.route('/follow/<nickname>')
 @login_required
 def follow(nickname):
     user = User.query.filter_by(nickname = nickname).first()
     if user == None:
-        flash('User ' + nickname + ' not found.')
+        flash('User ' + nickname + ' not found.', 'error')
         return redirect(url_for('home'))
     if user == g.user:
-        flash('You can\'t follow yourself!')
+        flash('You can\'t follow yourself!', 'error')
         return redirect(url_for('user', nickname = nickname))
     u = g.user.follow(user)
     if u is None:
-        flash('Cannot follow ' + nickname + '.')
+        flash('Cannot follow ' + nickname + '.', 'error')
         return redirect(url_for('user', nickname = nickname))
     db.session.add(u)
     db.session.commit()
     
     follower_notification(user, g.user)
-    flash('You are now following ' + nickname + '!')
+    flash('You are now following ' + nickname + '!', 'info')
     return redirect(url_for('user', nickname = nickname))
 
 @app.route('/unfollow/<nickname>')
@@ -194,18 +228,18 @@ def follow(nickname):
 def unfollow(nickname):
     user = User.query.filter_by(nickname = nickname).first()
     if user == None:
-        flash('User ' + nickname + ' not found.')
+        flash('User ' + nickname + ' not found.', 'error')
         return redirect(url_for('home'))
     if user == g.user:
-        flash('You can\'t unfollow yourself!')
+        flash('You can\'t unfollow yourself!', 'error')
         return redirect(url_for('user', nickname = nickname))
     u = g.user.unfollow(user)
     if u is None:
-        flash('Cannot unfollow ' + nickname + '.')
+        flash('Cannot unfollow ' + nickname + '.', 'error')
         return redirect(url_for('user', nickname = nickname))
     db.session.add(u)
     db.session.commit()
-    flash('You have stopped following ' + nickname + '.')
+    flash('You have stopped following ' + nickname + '.', 'info')
     return redirect(url_for('user', nickname = nickname))
 
 
@@ -252,9 +286,28 @@ def search_results(query):
                            query=query,
                            results=results)
 
-@app.route('/upload')
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
+
+
+@app.route('/upload', methods=['GET', 'POST'])
 def upload():
-  pass  
+    if request.method == 'POST':
+        saved_files_urls = []
+        for key, f in request.files.iteritems():
+            if f and allowed_file(f.filename):
+                filename = secure_filename(f.filename)
+                f.save(os.path.join(UPLOAD_IMG_DIR, filename))
+                saved_files_urls.append(url_for('uploaded_file', filename=filename))
+        return saved_files_urls[0]
+        #return redirect(url_for('home'))
+    return render_template('upload.html',
+                           title = 'Upload')
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(UPLOAD_IMG_DIR, filename)
 
 @lm.user_loader
 def load_user(id):
@@ -265,7 +318,7 @@ def load_user(id):
 def after_oidlogin(resp):
     print "after login"
     if resp.email is None or resp.email == "":
-        flash('Invalid login. Please try again.')
+        flash('Invalid login. Please try again.', 'error')
         return redirect(url_for('login'))
     user = User.query.filter_by(email = resp.email).first()
     if user is None:

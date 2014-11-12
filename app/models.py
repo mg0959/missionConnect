@@ -3,6 +3,10 @@ from hashlib import md5
 import uuid
 import hashlib
 import re
+from flask import url_for
+from PIL import Image
+import os, glob, copy
+from config import UPLOAD_IMG_DIR
 
 import sys
 if sys.version_info >= (3, 0): # pragma: no cover
@@ -28,6 +32,7 @@ class User(db.Model):
     password = db.Column(db.String(89))
     role = db.Column(db.SmallInteger, default = ROLE_USER)
     posts = db.relationship('Post', backref = 'author', lazy = 'dynamic')
+    photos = db.relationship('Photo', backref = 'owner', lazy = 'dynamic')
     about_me = db.Column(db.String(140))
     last_seen = db.Column(db.DateTime)
     followed = db.relationship('User',
@@ -71,6 +76,15 @@ class User(db.Model):
         return Post.query.filter(~Post.id.in_(followed_posts_ids)).order_by(Post.timestamp.desc())
         
     def avatar(self, size):
+        try:
+            db_image = self.photos.filter(Photo.isAvatar == True).first()
+            if db_image:
+                thumb_path = os.path.join(UPLOAD_IMG_DIR, db_image.fname.split(".")[0]+ "_thumb_"+str(size)+".jpg")
+                if not os.path.isfile(thumb_path):
+                    db_image.make_thumb(size)
+                return url_for('.static', filename='img/userImages/'+db_image.fname.split(".")[0]+ "_thumb_"+str(size)+".jpg")
+        except: pass
+        
         return  'http://www.gravatar.com/avatar/'+md5(self.email).hexdigest() +'?d=mm&s='+str(size)
 
     def set_password(self, password):
@@ -129,6 +143,35 @@ class Post(db.Model):
     @staticmethod
     def getPrayer():
         return Post.query.filter(Post.postType == PRAYER_POST)
+
+class Photo(db.Model):
+    id = db.Column(db.Integer, primary_key = True)
+    fname = db.Column(db.String(100))
+    timestamp = db.Column(db.DateTime)
+    caption =db.Column(db.String(140), default = "")
+    isAvatar = db.Column(db.Boolean, default = False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+
+    def make_thumb(self, size):
+        fpath = os.path.join(UPLOAD_IMG_DIR, self.fname)
+        im = Image.open(fpath)
+        im.thumbnail((size, size), Image.ANTIALIAS)
+        im.save(fpath.split(".")[0]+ "_thumb_"+str(size)+".jpg", "JPEG")
+
+    def delete_files(self):
+        fpath = os.path.join(UPLOAD_IMG_DIR, self.fname.split(".")[0])
+        for f in glob.glob((fpath+"*")):
+            os.remove(f)      
+        
+    def __repr__(self): # pragma: no cover
+        return '<Photo %r>' % (self.fname)
+
+    @staticmethod
+    def check_isImage(path1):
+        path = copy.copy(path1)
+        try: Image.open(path)
+        except IOError: return False
+        return True
 
 if enable_search:
     whooshalchemy.whoosh_index(app, Post)

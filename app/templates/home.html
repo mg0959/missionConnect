@@ -2,49 +2,17 @@
 {% extends "base.html" %}
 
 {% block content %}
-    
-<script>
-    function setPostType(rbID){
-        document.getElementById(rbID).checked = true;
-    }
-</script>
 
-<style>div.btn > input[type='radio']{display:none;}</style>
-    
     <h1>Hi, {{ g.user.nickname }}!</h1>
+    
     {% include 'flash.html' %}
-    <div class="well">
-        <form class="form-horizontal" action="" method="post" name="post">
-            {{ form.hidden_tag() }}
-            
-            <div class="control-group{% if form.post.errors or form.postType.errors %} error{% endif %}">
-                <label class="control-label" for="post">Say something:</label>
-                <div class="controls">
-                    <div class="btn-group" data-toggle="buttons-radio">
-                        {% for choice in form.postType %}
-                            <div class="btn {% if choice.data == form.postType.data%}active{% endif %}" onclick="setPostType('radio{{loop.index}}')">
-                            {{choice(id="radio"+loop.index|string)}}
-                            {{choice.label()}}
-                            </div>
-                        {% endfor %}
-                    </div>
-
-                    
-                    {{ form.post(size=30, maxlength=140) }}
-                    <input class="btn btn-primary" type="submit" value="Post!">
-                    {% for error in form.errors.post %}
-                        <span class="help-inline">[{{ error }}]</span><br>
-                    {% endfor %}
-                    {% for error in form.errors.postType%}
-                        <span class="help-inline">[{{ error }}]</span><br>
-                        {% endfor %}
-                </div>
-            </div>
-        </form>
-    </div>
+    
+    {% include 'post_input.html' %}
+    
     {% for post in posts.items %}
         {% include 'post.html' %}
     {% endfor %}
+    
     <ul class="pager">
         {% if posts.has_prev %}
         <li class="previous"><a href="{{ url_for('home', page=posts.prev_num) }}">Newer posts</a></li>

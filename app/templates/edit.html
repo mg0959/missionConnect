@@ -5,8 +5,19 @@
     <h1>Edit Your Profile</h1>
     {% include 'flash.html' %}
     <div class="well">
-        <form class="form-horizontal" action="" method="post" name="edit">
+        <form class="form-horizontal" action="" method="post" name="edit" enctype="multipart/form-data">
             {{ form.hidden_tag() }}
+            <div class="control-group">
+                <div class="control-group">
+                    <img src="{{ user.avatar(128) }}" class="img-polaroid">
+                </div>
+                <div class="control-group">
+                    {{form.avatar_img(accept="image/png, .jpg")}}
+                    {% for error in form.avatar_img.errors %}
+                        <span class="text-error">[{{ error }}]</span><br>
+                    {% endfor %}
+                </div>
+            </div>
             <div class="control-group{% if form.nickname.errors %} error{% endif %}">
                 <label class="control-label" for="nickname">Your nickname:</label>
                 <div class="controls">
