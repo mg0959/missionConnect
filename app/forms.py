@@ -59,8 +59,9 @@ class EditForm(Form):
         return self.is_submitted() and self.validate(avatar_img_file=avatar_img_file)
 
 class PostForm(Form):
-    post = TextField('post', validators = [Required()])
+    post = TextAreaField('post', validators = [Required()])
     postType = RadioField('postType', coerce=int, validators = [Required()])
     
 class SearchForm(Form):
     search = StringField('search', validators=[DataRequired()])
+    #searchType = RadioField('searchType', coerce=int, choices = [(1, "Posts")], validators = [Required()])

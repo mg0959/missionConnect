@@ -44,3 +44,4 @@ USER_DATE_DIR = os.path.join(basedir, 'user_data')
 
 UPLOAD_IMG_DIR = os.path.join(basedir, 'app\\static\\img\\userImages')
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
+MAX_CONTENT_LENGTH = 16*1024*1024

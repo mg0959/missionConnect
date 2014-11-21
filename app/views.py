@@ -97,7 +97,7 @@ def oid_login():
 @app.route('/logout')
 def logout():
     logout_user()
-    return redirect(url_for('home'))
+    return redirect(url_for('atMC'))
 
 @app.route('/register', methods =['GET', 'POST'])
 def register():
@@ -183,7 +183,7 @@ def edit():
                 db.session.add(pic)
                 db.session.delete(oldPic)
                 db.session.commit()
-                oldPic.delete_files()
+                if oldPic: oldPic.delete_files()
             except:
                 db.session.rollback()
                 if oldPic:
@@ -241,6 +241,32 @@ def unfollow(nickname):
     db.session.commit()
     flash('You have stopped following ' + nickname + '.', 'info')
     return redirect(url_for('user', nickname = nickname))
+
+@app.route('/user/<nickname>/followers')
+@app.route('/user/<nickname>/followers/<int:page>')
+@login_required
+def followers(nickname, page=1):
+    user = User.query.filter_by(nickname = nickname).first()
+    if user == None:
+        flash('User ' + nickname + ' not found.', 'error')
+        return redirect(url_for('home'))
+    profiles = user.followers.filter(User.nickname != user.nickname).order_by(User.nickname.asc()).paginate(page, POSTS_PER_PAGE, False)
+    return render_template('followers.html',
+        user = user,
+        profiles = profiles)
+
+@app.route('/user/<nickname>/following')
+@app.route('/user/<nickname>/following/<int:page>')
+@login_required
+def following(nickname, page=1):
+    user = User.query.filter_by(nickname = nickname).first()
+    if user == None:
+        flash('User ' + nickname + ' not found.', 'error')
+        return redirect(url_for('home'))
+    profiles = user.followed.filter(User.nickname != user.nickname).order_by(User.nickname.asc()).paginate(page, POSTS_PER_PAGE, False)
+    return render_template('following.html',
+        user = user,
+        profiles = profiles)
 
 
 @app.route('/explore')

@@ -6,7 +6,7 @@ import re
 from flask import url_for
 from PIL import Image
 import os, glob, copy
-from config import UPLOAD_IMG_DIR
+from config import UPLOAD_IMG_DIR, basedir
 
 import sys
 if sys.version_info >= (3, 0): # pragma: no cover
@@ -24,7 +24,7 @@ followers = db.Table('followers',
                     db.Column('followed_id', db.Integer, db.ForeignKey('user.id')))
 
 class User(db.Model):
-    __searchable__ = ['nickname']
+    #__searchable__ = ['nickname']
     
     id = db.Column(db.Integer, primary_key = True)
     nickname = db.Column(db.String(64), index = True, unique = True)
@@ -168,13 +168,17 @@ class Photo(db.Model):
 
     @staticmethod
     def check_isImage(path1):
-        path = copy.copy(path1)
+        if type(path1) != type(" "):
+            try:
+                path = os.path.join(basedir, "tmp"+path1.filename.split(".")[-1])
+                path1.save(path)
+            except: return False
+        else: path = path1
         try: Image.open(path)
         except IOError: return False
         return True
 
 if enable_search:
     whooshalchemy.whoosh_index(app, Post)
-    whooshalchemy.whoosh_index(app, User)
 
 

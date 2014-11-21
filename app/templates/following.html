@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1><a href="{{ url_for('user', nickname=user.nickname) }}"><img src="{{ user.avatar(70) }}" /></a> <a href="{{ url_for('user', nickname=user.nickname) }}">{{ user.nickname }}</a> is following...</h1>
+
+{% for profile in profiles.items %}
+    {% include 'profile.html' %}
+{% endfor %}
+<ul class="pager">
+    {% if profiles.has_prev %}
+    <li class="previous"><a href="{{ url_for('followers', nickname=user.nickname, page=profiles.prev_num) }}">Newer posts</a></li>
+    {% else %}
+    <li class="previous disabled"><a href="#">Newer posts</a></li>
+    {% endif %}
+    {% if profiles.has_next %}
+    <li class="next"><a href="{{ url_for('followers', nickname=user.nickname, page=profiles.next_num) }}">Older posts</a></li>
+    {% else %}
+    <li class="next disabled"><a href="#">Older posts</a></li>
+    {% endif %}
+</ul>
+
+
+{% endblock %}

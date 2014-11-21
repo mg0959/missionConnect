@@ -23,7 +23,7 @@
                     </div>
 
                     
-                    {{ form.post(size=30, maxlength=140) }}
+                    {{ form.post(size=140, maxlength=140, rows=1, class="span4") }}
                     <input class="btn btn-primary" type="submit" value="Post!">
                     {% for error in form.errors.post %}
                         <span class="help-inline">[{{ error }}]</span><br>
