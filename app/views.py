@@ -61,7 +61,6 @@ def login():
         page = 'login')
 
 def validateLogin(email, password):
-    print "after login"
     if email is None or email == "":
         flash('Invalid login. Please try again.', 'error')
         return redirect(url_for('login'))
@@ -149,7 +148,7 @@ def user(nickname, page=1):
     if user == None:
         flash('User ' + nickname + ' not found.', 'error')
         return redirect(url_for('home'))
-    posts = user.posts.paginate(page, POSTS_PER_PAGE, False)
+    posts = user.posts.order_by(Post.timestamp.desc()).paginate(page, POSTS_PER_PAGE, False)
     return render_template('user.html',
         user = user,
         posts = posts,
@@ -161,7 +160,6 @@ def edit():
     form = EditForm(g.user.nickname)
     if request.method == 'POST': avatar_img_file = request.files[form.avatar_img.name]
     else: avatar_img_file = None
-    print "avatar_img_file:", avatar_img_file
     if form.validate_on_submit(avatar_img_file):            
         g.user.nickname = form.nickname.data
         g.user.about_me = form.about_me.data
@@ -176,22 +174,21 @@ def edit():
                 db.session.add(oldPic)
             db.session.add(pic)
             db.session.commit()
-            try:
-                print "pic id", pic.id
-                pic.fname = (str(pic.id)+"."+f.filename.split(".")[-1])
-                f.save(os.path.join(UPLOAD_IMG_DIR, pic.fname))
-                db.session.add(pic)
-                db.session.delete(oldPic)
-                db.session.commit()
-                if oldPic: oldPic.delete_files()
-            except:
+            #try:
+            pic.fname = (str(pic.id)+"."+f.filename.split(".")[-1])
+            f.save(os.path.join(UPLOAD_IMG_DIR, pic.fname))
+            db.session.add(pic)
+            if oldPic: db.session.delete(oldPic)
+            db.session.commit()
+            if oldPic: oldPic.delete_files()
+            '''except:
                 db.session.rollback()
                 if oldPic:
                     oldPic.isAvatar=True
                     db.session.add(oldPic)
                 db.session.delete(pic)
                 db.session.commit()
-                flash('Unable to update photo.', 'error')
+                flash('Unable to update photo.', 'error')'''
                 
         flash('Your changes have been saved.', 'info')
         return redirect(url_for('edit'))
@@ -287,7 +284,6 @@ def explore(page = 1):
 @login_required
 def pray(page = 1):
     posts = Post.getPrayer().order_by(Post.timestamp.desc()).paginate(page, POSTS_PER_PAGE, False)
-    print "pray posts", posts.items
     return render_template('pray.html',
         title = 'Pray',
         posts = posts,
@@ -311,6 +307,25 @@ def search_results(query):
     return render_template('search_results.html',
                            query=query,
                            results=results)
+@app.route('/ajax/delete', methods=['POST'])
+@login_required
+def deletePost():
+    postID = int(request.form['postObjID'])
+    post = Post.query.get(postID)
+    db.session.delete(post)
+    db.session.commit()    
+    return "deleted"
+
+@app.route('/ajax/updatePost', methods=['POST'])
+@login_required
+def updatePost():
+    postId = int(request.form['postObjId'])
+    post = Post.query.get(postId)
+    post.body = request.form['postBody']
+    post.postType = request.form['postType']
+    db.session.add(post)
+    db.session.commit()    
+    return "deleted"
 
 
 def allowed_file(filename):
@@ -342,7 +357,6 @@ def load_user(id):
 
 @oid.after_login
 def after_oidlogin(resp):
-    print "after login"
     if resp.email is None or resp.email == "":
         flash('Invalid login. Please try again.', 'error')
         return redirect(url_for('login'))

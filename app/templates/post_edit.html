@@ -1,0 +1,31 @@
+<script>
+function setPostType(checkType, postId){
+        if (checkType == "1") {
+            $('#radioPost'+postId).prop("checked", true);
+            $('#PTVal'+postId).val("1");
+        }
+        else {
+            if (checkType == "3") {
+                $('#radioPray'+postId).prop("checked", true);
+                $('#PTVal'+postId).val("3");
+            }
+            else {alert("ERROR in setting postType")}
+        }
+      }
+</script>
+                <div>
+                        <textarea size=140, maxlength=140, rows=2, class="span6" id="textArea{{post.id}}">{{post.body}}</textarea>
+                </div>
+                <input type="hidden" id="PTVal{{post.id}}" value="{{post.postType}}">
+                <div class="controls">
+                    <div class="btn-group vcenter" data-toggle="buttons-radio">
+                        <div class="btn {% if 1 == post.postType%}active{% endif %} btn-mini" onclick="setPostType('1', '{{post.id}}')">
+                        <input type="radio" id="radioPost{{post.id}}" value="1">Post
+                        </div>
+                        <div class="btn {% if 3 == post.postType%}active{% endif %} btn-mini" onclick="setPostType('3', '{{post.id}}')">
+                        <input type="radio" id="radioPray{{post.id}}" value="3">Pray
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-mini" onclick="javascript:submitEditChanges('{{post.id}}');">Update</button>
+                    <button class="btn btn-primary btn-mini" onclick="javascript:editFormHide('#postBody{{post.id}}', '#actionBtn{{post.id}}', '#postEdit{{post.id}}')">Cancel</button>
+                </div>

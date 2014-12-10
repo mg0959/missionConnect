@@ -18,6 +18,57 @@
       .prayerRow{background-color: #e5ffff;} <!--#e5ffff #ccffe5 #c7fdf7-->
     </style>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      
+    <style>div.btn > input[type='radio']{display:none;}</style>
+    
+    <script>
+    
+      function editFormShow(postBodyId, actionBtnsId, postEditId) {
+        $(postBodyId).hide();
+        $(actionBtnsId).hide();
+        $(postEditId).show();
+      }
+      
+      function editFormHide(postBodyId, actionBtnsId, postEditId) {
+        $(postEditId).hide();
+        $(postBodyId).show();
+        $(actionBtnsId).show();}
+        
+      function submitEditChanges(postId){
+        $.post('/ajax/updatePost', {
+          postObjId: postId,
+          postBody: $('#textArea'+postId).val(),
+          postType: $('#PTVal'+postId).val()
+          }).done(function(){
+          if ($('#PTVal'+postId).val() == "1") {
+            $('#postBody'+ postId).text($('#textArea'+postId).val());
+            $('#postTable'+ postId).removeClass("prayerRow");
+          }
+          else {
+            if ($('#PTVal'+postId).val() == "3") {
+              $('#postBody'+ postId).replaceWith("<p id='postBody"+postId+"'><strong>Pray:</strong> " + $('#textArea'+postId).val()+"</p>");
+              $('#postTable'+ postId).addClass("prayerRow");
+            }
+          }
+          editFormHide('#postBody'+ postId, '#actionBtn'+ postId, '#postEdit'+ postId);
+        }).fail(function(){
+          alert("Error: Could not contact server.");
+          });
+      }
+      function deletePost(postID, postRowID, postTableID) {
+        $(postRowID).hide();
+        $.post('/ajax/delete', {
+          postObjID: postID
+        }).done(function(){
+          $(postTableID).replaceWith('<div class="alert alert-warning"><button type="button" class="close" data-dismiss="alert">&times;</button> Post Deleted</div>');
+          $(postTableID).show();          
+        }).fail(function(){
+          alert("Error: Could not contact server.");
+          $(postRowID).show();
+          });
+      }
+    </script>
+    
   </head>
   <body>
     <div class="container">

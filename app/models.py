@@ -76,16 +76,14 @@ class User(db.Model):
         return Post.query.filter(~Post.id.in_(followed_posts_ids)).order_by(Post.timestamp.desc())
         
     def avatar(self, size):
-        try:
-            db_image = self.photos.filter(Photo.isAvatar == True).first()
-            if db_image:
-                thumb_path = os.path.join(UPLOAD_IMG_DIR, db_image.fname.split(".")[0]+ "_thumb_"+str(size)+".jpg")
-                if not os.path.isfile(thumb_path):
-                    db_image.make_thumb(size)
-                return url_for('.static', filename='img/userImages/'+db_image.fname.split(".")[0]+ "_thumb_"+str(size)+".jpg")
-        except: pass
-        
-        return  'http://www.gravatar.com/avatar/'+md5(self.email).hexdigest() +'?d=mm&s='+str(size)
+        db_image = self.photos.filter(Photo.isAvatar == True).first()
+        if db_image:
+            thumb_path = os.path.join(UPLOAD_IMG_DIR, db_image.fname.split(".")[0]+ "_thumb_"+str(size)+".jpg")
+            if not os.path.isfile(thumb_path):
+                db_image.make_thumb(size)
+            return url_for('.static', filename='img/userImages/'+db_image.fname.split(".")[0]+ "_thumb_"+str(size)+".jpg")
+        else:
+            return  'http://www.gravatar.com/avatar/'+md5(self.email).hexdigest() +'?d=mm&s='+str(size)
 
     def set_password(self, password):
         self.password = User.hash_password(password)

@@ -5,7 +5,7 @@
             <p><a href="{{ url_for('user', nickname=profile.nickname) }}">{{ profile.nickname }}</a></p>
             {% if profile.about_me %}<p>{{ profile.about_me }}</p>{% endif %}
             {% if profile.last_seen %}<p><em>Last seen: {{ momentjs(profile.last_seen).calendar() }}</em></p>{% endif %}
-            <p>Followers: {{ profile.followers.count() - 1 }} | Following: {{ profile.followed.count() - 1 }}
+            <p><a href="{{ url_for('followers', nickname=profile.nickname)}}">Followers: {{ profile.followers.count() - 1 }}</a> | <a href="{{ url_for('following', nickname=profile.nickname)}}">Following: {{ profile.followed.count() - 1 }}</a>
         </td>
     </tr>
 </table>
