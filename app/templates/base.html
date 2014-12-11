@@ -24,7 +24,7 @@
     <script>
       
       function testAJAX() {
-        $.post('/ajax/test').done(function(args){
+        $.post('/ajax/test', {}).done(function(args){
           alert(args['response']);
         }).fail(function(){alert("failed")});
       }
