@@ -22,6 +22,12 @@
     <style>div.btn > input[type='radio']{display:none;}</style>
     
     <script>
+      
+      function testAJAX() {
+        $.post('/ajax/test').done(function(args){
+          alert(args['response']);
+        }).fail(function(){alert("failed")});
+      }
     
       function editFormShow(postBodyId, actionBtnsId, postEditId) {
         $(postBodyId).hide();
@@ -110,6 +116,9 @@
           {% block content %}{% endblock %}
         </div>
       </div>
-    </div>   
+    </div>
+  <div>
+    <button onclick="javascript:testAJAX()">Test Ajax</button>
+  </div>
   </body>
 </html>

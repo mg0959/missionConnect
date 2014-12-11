@@ -1,4 +1,4 @@
-from flask import render_template, flash, redirect, session, url_for, request, g, send_from_directory
+from flask import render_template, flash, redirect, session, url_for, request, g, send_from_directory, jsonify
 from flask.ext.login import login_user, logout_user, current_user, login_required
 from datetime import datetime
 from app import app, db, lm, oid
@@ -307,6 +307,12 @@ def search_results(query):
     return render_template('search_results.html',
                            query=query,
                            results=results)
+
+@app.route('/ajax/test', methods=['POST'])
+@login_required
+def AJAX_test():
+    return jsonify({'response':'success'})
+
 @app.route('/ajax/delete', methods=['POST'])
 @login_required
 def deletePost():
@@ -314,18 +320,20 @@ def deletePost():
     post = Post.query.get(postID)
     db.session.delete(post)
     db.session.commit()    
-    return "deleted"
+    return jsonify({'response':'success'})
 
 @app.route('/ajax/updatePost', methods=['POST'])
 @login_required
 def updatePost():
+    app.logger.info('Updating post...')
     postId = int(request.form['postObjId'])
     post = Post.query.get(postId)
     post.body = request.form['postBody']
     post.postType = request.form['postType']
     db.session.add(post)
-    db.session.commit()    
-    return "deleted"
+    db.session.commit()
+    app.logger.info('Post updated.')
+    return jsonify({'response':'success'})
 
 
 def allowed_file(filename):

@@ -1,5 +1,5 @@
 <script>
-    function setPostType(rbID){
+    function setPostInputType(rbID){
         document.getElementById(rbID).checked = true;
     }
 </script>
@@ -15,7 +15,7 @@
                 <div class="controls">
                     <div class="btn-group" data-toggle="buttons-radio">
                         {% for choice in form.postType %}
-                            <div class="btn {% if choice.data == form.postType.data%}active{% endif %}" onclick="setPostType('radio{{loop.index}}')">
+                            <div class="btn {% if choice.data == form.postType.data%}active{% endif %}" onclick="setPostInputType('radio{{loop.index}}')">
                             {{choice(id="radio"+loop.index|string)}}
                             {{choice.label()}}
                             </div>
