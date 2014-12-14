@@ -26,7 +26,19 @@
       function testAJAX() {
         $.post('/ajax/test', {}).done(function(args){
           alert(args['response']);
-        }).fail(function(arg1, arg2, arg3){alert("failed:"+arg2)});
+        }).fail(function(arg1, arg2, arg3){alert("failed: 1)"+arg1+" 2)"+arg2+" 3)"+arg3)});
+      }
+      
+      function testAJAX2() {
+        $.ajax({
+          url:'/ajax/test',
+          type:'POST',
+          data: {},
+          success:function(result){alert('Sucessfully called');},
+          error:function(exception){
+            alert('Exception: '+exception);
+            }
+        })
       }
     
       function editFormShow(postBodyId, actionBtnsId, postEditId) {
@@ -119,6 +131,7 @@
     </div>
   <div>
     <button onclick="javascript:testAJAX()">Test Ajax</button>
+    <button onclick="javascript:testAJAX2()">Test Ajax 2</button>
   </div>
   </body>
 </html>
