@@ -309,7 +309,6 @@ def search_results(query):
                            results=results)
 
 @app.route('/ajax/test', methods=['POST'])
-@login_required
 def AJAX_test():
     return jsonify({'response':'success'})
 

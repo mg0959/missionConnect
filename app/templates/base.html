@@ -24,14 +24,14 @@
     <script>
       
       function testAJAX() {
-        $.post('/ajax/test', {}).done(function(args){
+        $.post('{{url_for("AJAX_test")}}', {}).done(function(args){
           alert(args['response']);
         }).fail(function(arg1, arg2, arg3){alert("failed: 1)"+arg1+" 2)"+arg2+" 3)"+arg3)});
       }
       
       function testAJAX2() {
         $.ajax({
-          url:'/ajax/test',
+          url: '{{url_for("AJAX_test")}}',
           type:'POST',
           data: {},
           success:function(result){alert('Sucessfully called');},
@@ -53,7 +53,7 @@
         $(actionBtnsId).show();}
         
       function submitEditChanges(postId){
-        $.post('/ajax/updatePost', {
+        $.post('{{url_for("updatePost")}}', {
           postObjId: postId,
           postBody: $('#textArea'+postId).val(),
           postType: $('#PTVal'+postId).val()
@@ -75,7 +75,7 @@
       }
       function deletePost(postID, postRowID, postTableID) {
         $(postRowID).hide();
-        $.post('/ajax/delete', {
+        $.post('{{url_for("deletePost")}}', {
           postObjID: postID
         }).done(function(){
           $(postTableID).replaceWith('<div class="alert alert-warning"><button type="button" class="close" data-dismiss="alert">&times;</button> Post Deleted</div>');

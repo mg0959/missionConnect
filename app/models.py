@@ -164,6 +164,7 @@ class Photo(db.Model):
     def __repr__(self): # pragma: no cover
         return '<Photo %r>' % (self.fname)
 
+    '''
     @staticmethod
     def check_isImage(path1):
         if type(path1) != type(" "):
@@ -175,6 +176,7 @@ class Photo(db.Model):
         try: Image.open(path)
         except IOError: return False
         return True
+    '''
 
 if enable_search:
     whooshalchemy.whoosh_index(app, Post)
