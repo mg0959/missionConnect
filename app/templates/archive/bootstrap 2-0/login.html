@@ -1,0 +1,46 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+
+{% block content %}
+    {% include 'flash.html' %}
+    <div class="well">
+        <h3>Please Sign In</h3>
+        <form class="form-horizontal" action="" method="post" name="login">
+            {{ form.hidden_tag() }}
+            <div class="control-group">
+                <label class="control-label" for="email">Email</label>
+                <div class="controls">
+                    {{form.email(size=40, placeholder="Email", type="email")}}
+                    {% for error in form.email.errors %}
+                        <span class="help-inline">{{ error }};</span><br>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label" for="password">Password</label>
+                <div class="controls">
+                    {{form.password(size=40, placeholder="password", type="password")}}
+                    {% for error in form.password.errors %}
+                        <span class="help-inline">{{ error }};</span><br>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="controls">
+                    <label class="checkbox" for="remember_me">
+                    {{ form.remember_me }} Remember Me
+                    </label>
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="controls">
+                    <a href="{{url_for('register')}}">Don't have a username.  Sign Up Here!</a>
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="controls">
+                    <input class="btn btn-primary" type="submit" value="Sign In">
+                </div>
+            </div>
+        </form>
+{% endblock %}

@@ -2,9 +2,19 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1>Search results for "{{query}}":</h1>
+<h1>Search results for {{searchType}} with "{{query}}":</h1>
 {% include 'flash.html' %}
-{% for post in results %}
-    {% include 'post.html' %}
-{% endfor %}
+{% if searchType == "Posts"%}
+    {% for post in results %}
+        {% include 'post.html' %}
+    {% endfor %}
+{% elif searchType == "Users"%}
+    {% for profile in results %}
+        {% include 'profile.html' %}
+    {% endfor %}
+    
+{% else %}
+    No searchType Match
+{% endif %}
+
 {% endblock %}

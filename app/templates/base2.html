@@ -9,68 +9,97 @@
     {% else %}
     <title>missionConnect</title>
     {% endif %}
+    
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    
+    
+    <!--
     <link href="{{ url_for('.static', filename='css/bootstrap.min.css')}}" rel="stylesheet" media="screen">
     <link href="{{ url_for('.static', filename='css/bootstrap-responsive.min.css')}}" rel="stylesheet">
-    <script src="http://code.jquery.com/jquery-latest.js"></script>
     <script src="{{ url_for('.static', filename='js/bootstrap.min.js')}}"></script>
+    -->
+    
     <script src="{{ url_for('.static', filename='js/moment.min.js')}}"></script>
+    
+    <script type="text/javascript">
+      {% include 'mc_functions.js' %}
+    </script>
+    
     <style>
-      .prayerRow{background-color: #e5ffff;} <!--#e5ffff #ccffe5 #c7fdf7-->
+      .prayerRow{background-color: #e5ffff;}; <!--#e5ffff #ccffe5 #c7fdf7-->
+      }
     </style>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      
+    <style>div.btn > input[type='radio']{display:none;}</style>
+    
   </head>
   <body>
-    <div class="container">
-      <div class="navbar">
-        <div class="navbar-inner">
-          <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-          </a>
-          <a class="brand {% if page=="atMC" %} active {% endif %}" href="{{ url_for('atMC')}}">@missionConnect</a>
-              {% if g.user.is_authenticated() %}
-              <ul class="nav">
-              <li {% if page=="home" %}class="active"{% endif %}><a href="{{ url_for('home') }}">Home</a></li>
-              <li {% if page=="user" %}class="active"{% endif %}><a href="{{ url_for('user', nickname=g.user.nickname) }}">My Profile</a></li>
-              <li {% if page=="explore" %}class="active"{% endif %}><a href="{{ url_for('explore')}}">Explore</a></li>
-              <li {% if page=="pray" %}class="active"{% endif %}><a href="{{ url_for('pray')}}">Pray</a></li>
+    <nav class="navbar navbar-inverse">
+      <div class="navbar-header">
+        <a class="navbar-brand {% if page=='atMC' %} active {% endif %}" href="{{ url_for('atMC')}}">@missionConnect</a>
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+      </div>
+      <div class="navbar-collapse collapse">
+        {% if g.user.is_authenticated() %}
+        <ul class="nav navbar-nav">
+          <li {% if page=="home" %}class="active"{% endif %}><a href="{{ url_for('home') }}">Home</a></li>
+          <li {% if page=="user" %}class="active"{% endif %}><a href="{{ url_for('user', nickname=g.user.nickname) }}">My Profile</a></li>
+          <li {% if page=="explore" %}class="active"{% endif %}><a href="{{ url_for('explore')}}">Explore</a></li>
+          <li {% if page=="pray" %}class="active"{% endif %}><a href="{{ url_for('pray')}}">Pray</a></li>
+        </ul>        
+        <form class="navbar-search pull-right form-search" action="{{ url_for('search') }}" method="post" name="search">
+          {{ g.search_form.hidden_tag() }}
+          <div class="input-group">
+            <span class="dropdown">
+              <button class="btn btn-default dropdown-toggle" style="outline:0; width:70px;" type="button" id="searchDropdown" data-toggle="dropdown" aria-expanded="true">
+                <span id='buttonTxt'>Posts </span> <span class="caret"></span>
+              </button>
+              <ul class="dropdown-menu" style="top:12px; width:50px;" role="menu" aria-labelledby="searchDropdown">
+                <li role="presentation"><a role="menuitem" tabindex="1" href="javascript:updateSearchType('#searchType', '#buttonTxt', 'Posts')">Posts</a></li>
+                <li role="presentation"><a role="menuitem" tabindex="2" href="javascript:updateSearchType('#searchType', '#buttonTxt', 'Users')">Users</a></li>
               </ul>
-              {% endif %}
-              <ul class="nav pull-right">
-              {% if g.user.is_authenticated() %}
-              <li><a href="{{ url_for('logout') }}">Logout</a></li>
-              {% else %}
-              <li {% if page=="login" %}class="active"{% endif %}><a href="{{ url_for('login') }}">Login</a></li>
-              <li {% if page=="signup" %}class="active"{% endif %}><a href="{{ url_for('register') }}">SignUp</a></li>
-              {% endif %}
-              </ul>
+            </span>
+            {{ g.search_form.search(size=20, placeholder="Search", class="search-query") }}
+          </div>
+          {{ g.search_form.searchType(id="searchType")}}
+        </form>
+        {% endif %}
+        
+        <ul class="nav navbar-nav">
           {% if g.user.is_authenticated() %}
-          <div class="nav-collapse collapse">
-            <form class="form-search pull-right" action="{{ url_for('search') }}" method="post" name="search">
-                {{ g.search_form.hidden_tag() }}
-                 <!--
-              <div class="input-prepend">
-              <button class="btn dropdown-toggle" data-toggle="dropdown">
-                  Action
-                  <span class="caret"></span>
-                 </button>
-                 <ul class="dropdown-menu">
-                  <li>option1</li>
-                  <li>option2</li>
-                 </ul>
-              </div>-->
-                {{ g.search_form.search(size=20, placeholder="Search", class="search-query") }}
-            </form>
-          </div>
+          <li><a href="{{ url_for('logout') }}">Logout</a></li>
+          {% else %}
+          <li {% if page=="login" %}class="active"{% endif %}><a href="{{ url_for('login') }}">Login</a></li>
+          <li {% if page=="signup" %}class="active"{% endif %}><a href="{{ url_for('register') }}">SignUp</a></li>
           {% endif %}
-          </div>
-        </div>
+        </ul>
+        
+      </div>
+    </nav>
+    
+    
+    
+    
+    <div class="container">
       <div class="row">
         <div class="span12">
           {% block content %}{% endblock %}
         </div>
       </div>
-    </div>   
+    </div>
   </body>
 </html>

@@ -1,7 +1,9 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1><a href="{{ url_for('user', nickname=user.nickname) }}"><img src="{{ user.avatar(70) }}" /></a> <a href="{{ url_for('user', nickname=user.nickname) }}">{{ user.nickname }}</a> is following...</h1>
+<h1><a href="{{ url_for('user', nickname=user.nickname) }}"><img class="img-rounded" src="{{ user.avatar(70) }}" /></a> <a href="{{ url_for('user', nickname=user.nickname) }}">{{ user.nickname }}</a> is following...</h1>
+
+<hr>
 
 {% for profile in profiles.items %}
     {% include 'profile.html' %}

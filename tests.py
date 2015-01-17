@@ -7,7 +7,7 @@ cov.start()
 
 from config import basedir
 from app import app, db
-from app.models import User, Post
+from app.models import User, Post, Group
 from datetime import datetime, timedelta
 
 class TestCase(unittest.TestCase):
@@ -47,11 +47,11 @@ class TestCase(unittest.TestCase):
         nickname = User.make_unique_nickname('john')
         assert nickname != 'john'
 
-    def test_avatar(self):
-        u = User(nickname = 'john', email = 'john@example.com')
-        avatar = u.avatar(128)
-        expected = 'http://www.gravatar.com/avatar/d4c74594d841139328695756648b6bd6'
-        assert avatar[0:len(expected)] == expected
+##    def test_avatar(self):
+##        u = User(nickname = 'john', email = 'john@example.com')
+##        avatar = u.avatar(128)
+##        expected = 'http://www.gravatar.com/avatar/d4c74594d841139328695756648b6bd6'
+##        assert avatar[0:len(expected)] == expected
 
     def test_make_unique_nickname(self):
         u = User(nickname = 'john', email = 'john@example.com')
@@ -203,6 +203,137 @@ class TestCase(unittest.TestCase):
         assert f2 == [p4, p1]
         assert f3 == [p2, p1]
         assert f4 == [p3, p2, p1]
+
+    def test_group(self):
+        # make 4 users
+        u1 = User(nickname='john', email='john@example.com')
+        u2 = User(nickname='susan', email='susan@example.com')
+        u3 = User(nickname='mary', email='mary@example.com')
+        u4 = User(nickname='david', email='david@example.com')
+        db.session.add(u1)
+        db.session.add(u2)
+        db.session.add(u3)
+        db.session.add(u4)
+        db.session.commit()
+
+        # create 3 groups        
+        g1 = Group(name='group1', about='test group 1', creator=u1)
+        g2 = Group(name='group2', about='test group 2', creator=u3)
+        g3 = Group(name='group3', about='test group 3', creator=u1)
+        db.session.add(g1)
+        db.session.add(g2)
+        db.session.add(g3)
+        db.session.commit()
+
+        # make 4 posts
+        utcnow = datetime.utcnow()
+        p1 = Post(body="post from john", author=u1, timestamp=utcnow + timedelta(seconds=1), group = g1)
+        p2 = Post(body="post from susan", author=u2, timestamp=utcnow + timedelta(seconds=2), group = g1)
+        p3 = Post(body="post from mary", author=u3, timestamp=utcnow + timedelta(seconds=3), group = g2)
+        p4 = Post(body="post from david", author=u4, timestamp=utcnow + timedelta(seconds=4))
+        db.session.add(p1)
+        db.session.add(p2)
+        db.session.add(p3)
+        db.session.add(p4)
+        db.session.commit()
+
+        #check group creation
+        u1_groups = u1.groups.all()
+        u2_groups = u2.groups.all()
+        u3_groups = u3.groups.all()
+        u4_groups = u4.groups.all()
+
+        assert len(u1_groups) == 2
+        assert len(u2_groups) == 0
+        assert len(u3_groups) == 1
+        assert len(u4_groups) == 0
+        assert u1_groups == [g1, g3]
+        assert u3_groups == [g2]
+
+        # check post group assosciation
+        g1_posts = g1.posts.all()
+        g2_posts = g2.posts.all()
+        g3_posts = g3.posts.all()
+        independentPosts = Post.query.filter(Post.group == None).all()
+
+
+        assert len(g1_posts) == 2
+        assert len(g2_posts) == 1
+        assert len(g3_posts) == 0
+        assert len(independentPosts) == 1
+        assert g1_posts == [p1, p2]
+        assert g2_posts == [p3]
+        assert g3_posts == []
+        assert independentPosts == [p4]
+
+        # add meberships and follow groups
+        u1.join_group(g1)
+        u1.join_group(g2)
+        u1.join_group(g3)
+        u2.join_group(g1)
+        u2.join_group(g2)
+        u3.join_group(g1)
+
+        u4.follow_group(g1)
+        u4.follow_group(g2)
+        u4.follow_group(g3)
+        u3.follow_group(g2)
+        u3.follow_group(g1)
+        u2.follow_group(g2)
+        u1.follow_group(g3)
+
+        db.session.add(u1)
+        db.session.add(u2)
+        db.session.add(u3)
+        db.session.add(u4)
+        db.session.commit()
+
+        # check memberships
+        u1_memberships = u1.groupMemberships.all()
+        u2_memberships = u2.groupMemberships.all()
+        u3_memberships = u3.groupMemberships.all()
+        u4_memberships = u4.groupMemberships.all()
+
+        assert len(u1_memberships) == 3
+        assert len(u2_memberships) == 2
+        assert len(u3_memberships) == 1
+        assert len(u4_memberships) == 0
+        assert u1_memberships == [g1, g2, g3]
+        assert u2_memberships == [g1, g2]
+        assert u3_memberships == [g1]
+        assert u4_memberships == []
+
+        #check following
+        u1_following = u1.followedGroups.all()
+        u2_following = u2.followedGroups.all()
+        u3_following = u3.followedGroups.all()
+        u4_following = u4.followedGroups.all()
+
+        assert len(u1_following) == 1
+        assert len(u2_following) == 1
+        assert len(u3_following) == 2
+        assert len(u4_following) == 3
+        assert u1_following == [g3]
+        assert u2_following == [g2]
+        assert u3_following == [g2, g1]
+        assert u4_following == [g1, g2, g3]
+        
+        
+
+        # remove membership and following
+        u1.unjoin_group(g2)
+        u2.unfollow_group(g2)
+        db.session.add(u1)
+        db.session.add(u2)
+        db.session.commit()
+
+        u1_memberships = u1.groupMemberships.all()
+        u2_following = u2.followedGroups.all()
+        
+        assert len(u1_memberships) == 2
+        assert u1_memberships == [g1, g3]
+        assert len(u2_following) == 0
+        assert u2_following == []     
         
     def test_password(self):
         u1 = User(nickname = 'john', email = 'john@example.com', password=User.hash_password('secret'))

@@ -1,9 +1,13 @@
 from flask.ext.wtf import Form
-from wtforms import TextField, BooleanField, TextAreaField, StringField, RadioField, FileField
+from wtforms import TextField, BooleanField, TextAreaField, StringField, RadioField, FileField, HiddenField
 from wtforms.validators import Required, Length, DataRequired
 from app.models import User, Photo
 
 IMAGE_EXT = ['jpg', 'tif', 'png']
+
+class CreateGroupForm(Form):
+    groupName = TextField('groupNameForm', validators=[Required()])
+    groupAbout = TextField('groupAboutForm', validators=[Length(min=0, max=140)])
 
 class OpenidLoginForm(Form):
     openid = TextField('openid', validators = [Required()])
@@ -64,4 +68,4 @@ class PostForm(Form):
     
 class SearchForm(Form):
     search = StringField('search', validators=[DataRequired()])
-    #searchType = RadioField('searchType', coerce=int, choices = [(1, "Posts")], validators = [Required()])
+    searchType = HiddenField('searchType', default="Posts", validators = [Required()])

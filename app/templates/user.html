@@ -3,9 +3,9 @@
 
 {% block content %}
     {% include 'flash.html' %}
-    <div class="well well-large" style="height: 140px;">
+    <div class="well well-lg">
         <div class="pull-right">
-            <img src="{{ user.avatar(128) }}" class="img-polaroid">
+            <img src="{{ user.avatar(128) }}" class="img-thumbnail">
         </div>
         <h1>{{ user.nickname }}</h1>
         {% if user.about_me %}<p>{{ user.about_me }}</p>{% endif %}
@@ -20,6 +20,10 @@
         {% endif %}
         </p>
     </div>
+    {% if user.id == g.user.id%}
+        {% include 'post_input.html' %}
+    {% endif %}
+    
     {% for post in posts.items %}
         {% include 'post.html' %}
     {% endfor %}

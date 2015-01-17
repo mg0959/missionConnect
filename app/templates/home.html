@@ -5,9 +5,8 @@
 
     <h1>Hi, {{ g.user.nickname }}!</h1>
     
-    {% include 'flash.html' %}
-    
-    {% include 'post_input.html' %}
+    {% include 'flash.html' %}    
+    <hr>
     
     {% for post in posts.items %}
         {% include 'post.html' %}

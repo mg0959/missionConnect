@@ -1,0 +1,40 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+
+{% block content %}
+    {% include 'flash.html' %}
+    <div class="well well-lg">
+        <h1>{{ group.name }}</h1>
+        {% if group.about %}<p>{{ group.about }}</p>{% endif %}
+        <p>Followers: {{ group.followers.count() - 1 }} |
+        {% if group.creator == g.user.id %}
+            <a href="{{url_for('edit')}}">Edit this group</a>
+        {% elif not g.user.is_group_follower(group) %}
+            <a href="#">Follow</a>
+        {% else %}
+            <a href="#">Unfollow</a>
+        {% endif %}
+        </p>
+        <div>
+            
+        </div>
+    </div>
+    
+    
+    {% for post in posts.items %}
+        {% include 'post.html' %}
+    {% endfor %}
+    <ul class="pager">
+        {% if posts.has_prev %}
+        <li class="previous"><a href="{{ url_for('user', nickname=user.nickname, page=posts.prev_num) }}">Newer posts</a></li>
+        {% else %}
+        <li class="previous disabled"><a href="#">Newer posts</a></li>
+        {% endif %}
+        {% if posts.has_next %}
+        <li class="next"><a href="{{ url_for('user', nickname=user.nickname, page=posts.next_num) }}">Older posts</a></li>
+        {% else %}
+        <li class="next disabled"><a href="#">Older posts</a></li>
+        {% endif %}
+    </ul>
+{% endblock %}
+

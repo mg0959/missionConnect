@@ -23,6 +23,38 @@ followers = db.Table('followers',
                     db.Column('follower_id', db.Integer, db.ForeignKey('user.id')),
                     db.Column('followed_id', db.Integer, db.ForeignKey('user.id')))
 
+groupFollowers = db.Table('groupFollowers',
+                    db.Column('follower_id', db.Integer, db.ForeignKey('user.id')),
+                    db.Column('group_id', db.Integer, db.ForeignKey('group.id')))
+
+members = db.Table('members',
+                    db.Column('member_id', db.Integer, db.ForeignKey('user.id')),
+                    db.Column('group_id', db.Integer, db.ForeignKey('group.id')))
+
+postGroup = db.Table('postGroup',
+                     db.Column('post_id', db.Integer, db.ForeignKey('post.id')),
+                     db.Column('group_id', db.Integer, db.ForeignKey('group.id')))
+
+            
+
+class Group(db.Model):    
+    id = db.Column(db.Integer, primary_key = True)
+    name = db.Column(db.String(64), index = True, unique = True)
+    about = db.Column(db.String(140))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    
+    posts = db.relationship('Post', backref = 'group', lazy = 'dynamic')
+
+    def avatar(self, size):
+        return url_for('.static', filename='img/default_profile.jpg')
+        
+    def __repr__(self): # pragma: no cover
+        return '<Group %r>' % (self.name)
+    
+    @staticmethod
+    def make_valid_name(name):
+        return re.sub('[^a-zA-Z0-9_\.]', '', name)
+
 class User(db.Model):
     #__searchable__ = ['nickname']
     
@@ -33,6 +65,7 @@ class User(db.Model):
     role = db.Column(db.SmallInteger, default = ROLE_USER)
     posts = db.relationship('Post', backref = 'author', lazy = 'dynamic')
     photos = db.relationship('Photo', backref = 'owner', lazy = 'dynamic')
+    groups = db.relationship('Group', backref = 'creator', lazy = 'dynamic')
     about_me = db.Column(db.String(140))
     last_seen = db.Column(db.DateTime)
     followed = db.relationship('User',
@@ -41,7 +74,20 @@ class User(db.Model):
                                secondaryjoin = (followers.c.followed_id == id),
                                backref = db.backref('followers', lazy = 'dynamic'),
                                lazy = 'dynamic')
+    groupMemberships = db.relationship('Group',
+                                   secondary = members,
+                                   primaryjoin = (members.c.member_id == id),
+                                   secondaryjoin = (members.c.group_id == Group.id),
+                                   backref = db.backref('members', lazy = 'dynamic'),
+                                   lazy = 'dynamic')
+    followedGroups = db.relationship('Group',
+                                     secondary = groupFollowers,
+                                     primaryjoin = (groupFollowers.c.follower_id == id),
+                                     secondaryjoin = (groupFollowers.c.group_id == Group.id),
+                                     backref = db.backref('followers', lazy='dynamic'),
+                                     lazy='dynamic')
 
+    # basic User property functions
     def is_authenticated(self):
         return True
 
@@ -54,6 +100,10 @@ class User(db.Model):
     def get_id(self):
         return unicode(self.id)
 
+    ############################
+    # follow/unfollow users
+    ############################
+    
     def follow(self, user):
         if not self.is_following(user):
             self.followed.append(user)
@@ -67,13 +117,54 @@ class User(db.Model):
     def is_following(self, user):
         return self.followed.filter(followers.c.followed_id == user.id).count()>0
 
+    ############################
+    # join/unjoin groups
+    ############################
+
+    def join_group(self, group):
+        if not self.is_group_member(group):
+            self.groupMemberships.append(group)
+            return self
+
+    def unjoin_group(self, group):
+        if self.is_group_member(group):
+            self.groupMemberships.remove(group)
+            return self
+
+    def is_group_member(self, group):
+        return self.groupMemberships.filter(members.c.group_id==group.id).count()>0
+
+    ############################
+    # follow/unfollow groups
+    ############################
+
+    def follow_group(self, group):
+        if not self.is_group_follower(group):
+            self.followedGroups.append(group)
+            return self
+
+    def unfollow_group(self, group):
+        if self.is_group_follower(group):
+            self.followedGroups.remove(group)
+            return self
+
+    def is_group_follower(self, group):
+        return self.followedGroups.filter(groupFollowers.c.group_id==group.id).count()>0
+
+    ############################
+    # get Posts
+    ############################
+    
     def followed_posts(self):
         return Post.query.join(followers, (followers.c.followed_id == Post.user_id)).filter(followers.c.follower_id == self.id).order_by(Post.timestamp.desc())
 
     def unfollowed_posts(self):
-
         followed_posts_ids = map(lambda given_post: given_post.id, self.followed_posts().all())
         return Post.query.filter(~Post.id.in_(followed_posts_ids)).order_by(Post.timestamp.desc())
+    
+    ############################
+    # User Profile Settings
+    ############################
         
     def avatar(self, size):
         db_image = self.photos.filter(Photo.isAvatar == True).first()
@@ -117,7 +208,10 @@ class User(db.Model):
         salt = uuid.uuid4().hex
         return hashlib.sha224(salt.encode() + password.encode()).hexdigest() + ':' + salt
    
-            
+
+
+
+
 
 #Post types
 GENERAL_POST = 1
@@ -134,6 +228,7 @@ class Post(db.Model):
     timestamp = db.Column(db.DateTime)
     postType = db.Column(db.SmallInteger, default = GENERAL_POST)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    group_id = db.Column(db.Integer, db.ForeignKey('group.id'))
 
     def __repr__(self): # pragma: no cover
         return '<Post %r>' % (self.body)
@@ -180,5 +275,6 @@ class Photo(db.Model):
 
 if enable_search:
     whooshalchemy.whoosh_index(app, Post)
+    #whooshalchemy.whoosh_index(app, User)
 
 

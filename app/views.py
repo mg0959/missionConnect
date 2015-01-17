@@ -2,8 +2,8 @@ from flask import render_template, flash, redirect, session, url_for, request, g
 from flask.ext.login import login_user, logout_user, current_user, login_required
 from datetime import datetime
 from app import app, db, lm, oid
-from forms import LoginForm, EditForm, PostForm, SearchForm, OpenidLoginForm, SignupForm
-from models import User, ROLE_USER, ROLE_ADMIN, Post, GENERAL_POST, PRAYER_POST, Photo
+from forms import LoginForm, EditForm, PostForm, SearchForm, OpenidLoginForm, SignupForm, CreateGroupForm
+from models import User, ROLE_USER, ROLE_ADMIN, Post, GENERAL_POST, PRAYER_POST, Photo, Group
 from config import POSTS_PER_PAGE, MAX_SEARCH_RESULTS, DATABASE_QUERY_TIMEOUT, SQLALCHEMY_RECORD_QUERIES
 from config import UPLOAD_IMG_DIR, ALLOWED_EXTENSIONS
 from emails import follower_notification, signup_notification
@@ -20,31 +20,15 @@ def atMC():
         title = '@MC',
         page = 'atMC')
 
-@app.route('/', methods=['GET', 'POST'])
-@app.route('/home', methods=['GET', 'POST'])
-@app.route('/home/<int:page>', methods=['GET', 'POST'])
+@app.route('/home')
+@app.route('/home/<int:page>')
+@app.route('/home/<int:page>/<theme>')
 @login_required
-def home(page=1):
-    form = PostForm()
-    form.postType.choices = [(GENERAL_POST, "Post"), (PRAYER_POST, "Prayer")]
-    if form.validate_on_submit():
-        post = Post(body = form.post.data, timestamp = datetime.utcnow(), author = g.user, postType=form.postType.data)
-        db.session.add(post)
-        db.session.commit()
-        if form.postType.data == PRAYER_POST:    
-            flash('Your prayer post is now live!', 'info')
-        else: flash('Your post is now live!', 'info')
-        return redirect(url_for('home'))
+def home(page=1, theme=None):    
     #only followed posts
     posts = g.user.followed_posts().paginate(page, POSTS_PER_PAGE, False)
-    #all posts
-    form.postType.data =GENERAL_POST
-    #posts = Post.query.order_by(Post.timestamp.desc()).paginate(page, POSTS_PER_PAGE, False)
-    return render_template('home.html',
-        title = 'Home',
-        form=form,
-        posts = posts,
-        page = 'home')
+    
+    return render_template('home.html', title = 'Home', posts = posts, page = 'home', theme=theme)
 
 @app.route('/login', methods = ['GET', 'POST'])
 def login():
@@ -140,17 +124,33 @@ def register():
     
     
 
-@app.route('/user/<nickname>')
-@app.route('/user/<nickname>/<int:page>')
+@app.route('/user/<nickname>', methods=['GET', 'POST'])
+@app.route('/user/<nickname>/<int:page>', methods=['GET', 'POST'])
 @login_required
-def user(nickname, page=1):
+def user(nickname, page=1):    
     user = User.query.filter_by(nickname = nickname).first()
     if user == None:
         flash('User ' + nickname + ' not found.', 'error')
         return redirect(url_for('home'))
+
+    form = PostForm()
+    form.postType.choices = [(GENERAL_POST, "Post"), (PRAYER_POST, "Prayer")]
+    if form.validate_on_submit():
+        post = Post(body = form.post.data, timestamp = datetime.utcnow(), author = g.user, postType=form.postType.data)
+        db.session.add(post)
+        db.session.commit()
+        if form.postType.data == PRAYER_POST:    
+            flash('Your prayer post is now live!', 'info')
+        else:
+            flash('Your post is now live!', 'info')
+        return redirect(url_for('user', nickname=nickname))
+
+    form.postType.data = GENERAL_POST
+    
     posts = user.posts.order_by(Post.timestamp.desc()).paginate(page, POSTS_PER_PAGE, False)
     return render_template('user.html',
         user = user,
+        form=form,
         posts = posts,
         page='user')
 
@@ -265,6 +265,61 @@ def following(nickname, page=1):
         user = user,
         profiles = profiles)
 
+########################################
+# Group Function Views
+########################################
+
+@app.route('/group/<group_name>')
+@app.route('/group/<group_name>/<int:page>')
+@login_required
+def group(group_name, page=1):
+    group = Group.query.filter_by(name==group_name).first()
+    if not group:
+        flash("'"+group_name+"' does not exist!", 'error')
+        return redirect(url_for('home'))
+
+##@app.route('/createGroup', methods=['POST'])
+##@login_required
+##def createGroup():
+##    if not g.search_form.validate_on_submit():
+##        return redirect(url_for('home'))
+##    return redirect(url_for('search_results', searchType=g.search_form.searchType.data, query=g.search_form.search.data))
+
+
+##@app.route('/followGroup/<group_name>')
+##@login_required
+##def followGroup(group_name):
+##    group = Group.query.filter_by(Group.name = group_name).first()
+##    u = g.user.follow_group(group)
+##    if u is None:
+##        flash('Cannot follow ' + group_name + '.', 'error')
+##        return redirect(url_for('group', group_name=group_name))
+##    db.session.add(u)
+##    db.session.commit()
+##    
+##    follower_notification(group.creator, g.user)
+##    flash('You are now following ' + nickname + '!', 'info')
+##    return redirect(url_for('user', nickname = nickname))
+##
+##@app.route('/unfollow/<nickname>')
+##@login_required
+##def unfollow(nickname):
+##    user = User.query.filter_by(nickname = nickname).first()
+##    if user == None:
+##        flash('User ' + nickname + ' not found.', 'error')
+##        return redirect(url_for('home'))
+##    if user == g.user:
+##        flash('You can\'t unfollow yourself!', 'error')
+##        return redirect(url_for('user', nickname = nickname))
+##    u = g.user.unfollow(user)
+##    if u is None:
+##        flash('Cannot unfollow ' + nickname + '.', 'error')
+##        return redirect(url_for('user', nickname = nickname))
+##    db.session.add(u)
+##    db.session.commit()
+##    flash('You have stopped following ' + nickname + '.', 'info')
+##    return redirect(url_for('user', nickname = nickname))
+
 
 @app.route('/explore')
 @app.route('/explore/<int:page>')
@@ -295,17 +350,24 @@ def pray(page = 1):
 def search():
     if not g.search_form.validate_on_submit():
         return redirect(url_for('home'))
-    return redirect(url_for('search_results', query=g.search_form.search.data))
+    return redirect(url_for('search_results', searchType=g.search_form.searchType.data, query=g.search_form.search.data))
 
-@app.route('/search_results/<query>')
+@app.route('/search_results/<searchType>/<query>')
 @login_required
-def search_results(query):
-    # returns matching posts from followed users
-    results = g.user.followed_posts().whoosh_search(query, MAX_SEARCH_RESULTS).all()
-    # returns all matching posts
-    # Post.query.whoosh_search(query, MAX_SEARCH_RESULTS).all()
+def search_results(searchType, query):
+    print "searchType", searchType
+    if searchType=="Posts":
+        results = g.user.followed_posts().whoosh_search(query, MAX_SEARCH_RESULTS).all()
+        # Post.query.whoosh_search(query, MAX_SEARCH_RESULTS).all()
+    elif searchType =="Users":
+        results = User.query.filter(User.nickname.ilike("%"+str(query)+"%")).all()
+    else:
+        flash('Invalid search type', 'error')
+        results = None
+    print "results: '", results, "'"
     return render_template('search_results.html',
                            query=query,
+                           searchType=str(searchType),
                            results=results)
 
 @app.route('/ajax/test', methods=['POST'])
