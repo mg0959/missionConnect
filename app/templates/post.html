@@ -2,16 +2,16 @@
     <div class="media row table collapse in {% if post.postType == 3 %} prayerRow {% endif %}" id="postTable{{post.id}}">
         
         {% if post.group %}
-            <a class="media-left col-xs-1" href="#"><img  class="center-block img-rounded" src="{{ post.group.avatar(70) }}" /></a>
+            <a class="media-left col-xs-1" href="#"><img  class="center-block img-rounded img-responsive" src="{{ post.group.avatar(70) }}" /></a>
         {% else %}
-            <a class="media-left col-xs-1" href="{{ url_for('user', nickname=post.author.nickname) }}"><img  class="center-block img-rounded" src="{{ post.author.avatar(70) }}" /></a>
+            <a class="media-left col-xs-1" href="{{ url_for('user', nickname=post.author.nickname) }}"><img  class="center-block img-rounded img-responsive" src="{{ post.author.avatar(70) }}" /></a>
         {% endif %}
         
-        <div class="col-xs-11">
+        <div>
             <div class="media-body">
                 <p class="media-heading">
                     {% if post.group %}
-                        <a href="{{ url_for('user', nickname=post.author.nickname) }}">{{ post.author.nickname }}</a> via <a href="#">{{ post.group.name }}</a>,  {{ momentjs(post.timestamp).fromNow() }}:
+                        <a href="{{ url_for('user', nickname=post.author.nickname) }}">{{ post.author.nickname }}</a> via <a href="{{ url_for('group', group_name=post.group.name) }}">{{ post.group.name }}</a>,  {{ momentjs(post.timestamp).fromNow() }}:
                     {% else %}
                         <a href="{{ url_for('user', nickname=post.author.nickname) }}">{{ post.author.nickname }}</a>, {{ momentjs(post.timestamp).fromNow() }}:
                     {% endif %}

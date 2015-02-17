@@ -7,7 +7,7 @@ cov.start()
 
 from config import basedir
 from app import app, db
-from app.models import User, Post, Group
+from app.models import User, Post, Group, Photo
 from datetime import datetime, timedelta
 
 class TestCase(unittest.TestCase):
@@ -52,6 +52,16 @@ class TestCase(unittest.TestCase):
 ##        avatar = u.avatar(128)
 ##        expected = 'http://www.gravatar.com/avatar/d4c74594d841139328695756648b6bd6'
 ##        assert avatar[0:len(expected)] == expected
+##        ph1 = Photo(fname='test_image.jpg', timestamp = datetime.utcnow(), owner = u)
+##        db.session.add(u)
+##        db.session.add(ph1)
+##        db.session.commit()
+##        
+##        u.set_avatar(ph1)
+##        db.session.add(u)
+##        db.session.commit()
+##        avatar = u.avatar(128)
+##        print "avatar link:", avatar
 
     def test_make_unique_nickname(self):
         u = User(nickname = 'john', email = 'john@example.com')

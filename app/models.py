@@ -42,11 +42,21 @@ class Group(db.Model):
     name = db.Column(db.String(64), index = True, unique = True)
     about = db.Column(db.String(140))
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    
     posts = db.relationship('Post', backref = 'group', lazy = 'dynamic')
+    avatar_photo = db.Column(db.Integer)
+
+    def set_avatar(self, photo):
+        self.avatar_photo = photo.id
 
     def avatar(self, size):
-        return url_for('.static', filename='img/default_profile.jpg')
+        if self.avatar_photo:
+            db_image = Photo.query.get(self.avatar_photo)
+            thumb_path = os.path.join(UPLOAD_IMG_DIR, db_image.fname.split(".")[0]+ "_thumb_"+str(size)+".jpg")
+            if not os.path.isfile(thumb_path):
+                db_image.make_thumb(size)
+            return url_for('.static', filename='img/userImages/'+db_image.fname.split(".")[0]+ "_thumb_"+str(size)+".jpg")
+        else:
+            return  url_for('.static', filename='img/default_profile.jpg')
         
     def __repr__(self): # pragma: no cover
         return '<Group %r>' % (self.name)
@@ -63,11 +73,13 @@ class User(db.Model):
     email = db.Column(db.String(120), index = True, unique = True)
     password = db.Column(db.String(89))
     role = db.Column(db.SmallInteger, default = ROLE_USER)
-    posts = db.relationship('Post', backref = 'author', lazy = 'dynamic')
-    photos = db.relationship('Photo', backref = 'owner', lazy = 'dynamic')
-    groups = db.relationship('Group', backref = 'creator', lazy = 'dynamic')
     about_me = db.Column(db.String(140))
     last_seen = db.Column(db.DateTime)
+    
+    posts = db.relationship('Post', backref = 'author', lazy = 'dynamic')
+    photos = db.relationship('Photo', backref = 'owner', lazy = 'dynamic')
+    avatar_photo = db.Column(db.Integer)
+    groups = db.relationship('Group', backref = 'creator', lazy = 'dynamic')
     followed = db.relationship('User',
                                secondary = followers,
                                primaryjoin = (followers.c.follower_id == id),
@@ -75,11 +87,11 @@ class User(db.Model):
                                backref = db.backref('followers', lazy = 'dynamic'),
                                lazy = 'dynamic')
     groupMemberships = db.relationship('Group',
-                                   secondary = members,
-                                   primaryjoin = (members.c.member_id == id),
-                                   secondaryjoin = (members.c.group_id == Group.id),
-                                   backref = db.backref('members', lazy = 'dynamic'),
-                                   lazy = 'dynamic')
+                                       secondary = members,
+                                       primaryjoin = (members.c.member_id == id),
+                                       secondaryjoin = (members.c.group_id == Group.id),
+                                       backref = db.backref('members', lazy = 'dynamic'),
+                                       lazy = 'dynamic')
     followedGroups = db.relationship('Group',
                                      secondary = groupFollowers,
                                      primaryjoin = (groupFollowers.c.follower_id == id),
@@ -124,11 +136,13 @@ class User(db.Model):
     def join_group(self, group):
         if not self.is_group_member(group):
             self.groupMemberships.append(group)
+            self.follow_group(group)
             return self
 
     def unjoin_group(self, group):
         if self.is_group_member(group):
             self.groupMemberships.remove(group)
+            self.unfollow_group(group)
             return self
 
     def is_group_member(self, group):
@@ -167,6 +181,15 @@ class User(db.Model):
     ############################
         
     def avatar(self, size):
+        if self.avatar_photo:
+            db_image = Photo.query.get(self.avatar_photo)
+            thumb_path = os.path.join(UPLOAD_IMG_DIR, db_image.fname.split(".")[0]+ "_thumb_"+str(size)+".jpg")
+            if not os.path.isfile(thumb_path):
+                db_image.make_thumb(size)
+            return url_for('.static', filename='img/userImages/'+db_image.fname.split(".")[0]+ "_thumb_"+str(size)+".jpg")
+        else:
+            return  url_for('.static', filename='img/default_profile.jpg')
+        '''
         db_image = self.photos.filter(Photo.isAvatar == True).first()
         if db_image:
             thumb_path = os.path.join(UPLOAD_IMG_DIR, db_image.fname.split(".")[0]+ "_thumb_"+str(size)+".jpg")
@@ -175,6 +198,10 @@ class User(db.Model):
             return url_for('.static', filename='img/userImages/'+db_image.fname.split(".")[0]+ "_thumb_"+str(size)+".jpg")
         else:
             return  'http://www.gravatar.com/avatar/'+md5(self.email).hexdigest() +'?d=mm&s='+str(size)
+        '''
+
+    def set_avatar(self, photo):
+        self.avatar_photo = photo.id
 
     def set_password(self, password):
         self.password = User.hash_password(password)
@@ -259,19 +286,6 @@ class Photo(db.Model):
     def __repr__(self): # pragma: no cover
         return '<Photo %r>' % (self.fname)
 
-    '''
-    @staticmethod
-    def check_isImage(path1):
-        if type(path1) != type(" "):
-            try:
-                path = os.path.join(basedir, "tmp"+path1.filename.split(".")[-1])
-                path1.save(path)
-            except: return False
-        else: path = path1
-        try: Image.open(path)
-        except IOError: return False
-        return True
-    '''
 
 if enable_search:
     whooshalchemy.whoosh_index(app, Post)

@@ -41,7 +41,7 @@
     
     <style>
       .prayerRow{background-color: #e5ffff;}; <!--#e5ffff #ccffe5 #c7fdf7-->
-      }
+     
     </style>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
       
@@ -70,7 +70,7 @@
             <li {% if page=="explore" %}class="active"{% endif %}><a href="{{ url_for('explore')}}">Explore</a></li>
             <li {% if page=="pray" %}class="active"{% endif %}><a href="{{ url_for('pray')}}">Pray</a></li>
             <li {% if page=="user" %}class="active"{% endif %}><a href="{{ url_for('user', nickname=g.user.nickname) }}">My Profile</a></li>
-            <li class="dropdown">
+            <li class="dropdown {% if page=="group" %}active{% endif %}">
               <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Groups <span class="caret"></span></a>
               <ul class="dropdown-menu" role="menu">
                 <li><a href="#">Create Group</a></li>

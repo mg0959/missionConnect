@@ -61,6 +61,7 @@ class EditForm(Form):
         a shortcut, equivalent to ``form.is_submitted() and form.validate()``
         """
         return self.is_submitted() and self.validate(avatar_img_file=avatar_img_file)
+    
 
 class PostForm(Form):
     post = TextAreaField('post', validators = [Required()])
@@ -69,3 +70,40 @@ class PostForm(Form):
 class SearchForm(Form):
     search = StringField('search', validators=[DataRequired()])
     searchType = HiddenField('searchType', default="Posts", validators = [Required()])
+
+class EditGroupForm(Form):
+    name = TextField('name', validators = [Required()])
+    about = TextAreaField('about', validators = [Length(min=0, max=140)])
+    avatar_img = FileField('avatar_img')
+
+    def __init__(self, original_name, *args, **kwargs):
+        Form.__init__(self, *args, **kwargs)
+        self.original_name = original_name
+
+    def validate(self, avatar_img_file=None):
+        print "Validating!"
+        if not Form.validate(self):
+            return False
+        if self.name.data != self.original_name:
+            group = Group.query.filter_by(name = self.name.data).first()
+            if group != None:
+                self.name.errors.append('This group name is already in use.  Please choose another one.')
+                return False
+        if self.avatar_img.data and self.avatar_img.data.filename.split(".")[-1] not in IMAGE_EXT:
+            if len(str(self.avatar_img.data.filename)) < 15:
+                error_msg = 'The selected file "' + str(self.avatar_img.data.filename)  + '" is not an acceptable image type.  Please choose another.'
+            else: error_msg = 'The selected file "' + str(self.avatar_img.data.filename)[0:10]+' ... ' + str(self.avatar_img.data.filename)[-8:]  + '" is not an acceptable image type.  Please choose another.'
+            self.avatar_img.errors.append(error_msg)
+            return False
+##        if self.avatar_img.data and (not Photo.check_isImage(avatar_img_file)):
+##            self.avatar_img.errors.append('The selected file is not an image.  Please choose another.')
+##            return False
+        
+        return True
+
+    def validate_on_submit(self, avatar_img_file=None):
+        """
+        Checks if form has been submitted and if so runs validate. This is
+        a shortcut, equivalent to ``form.is_submitted() and form.validate()``
+        """
+        return self.is_submitted() and self.validate(avatar_img_file=avatar_img_file)

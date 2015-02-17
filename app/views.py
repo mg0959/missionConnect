@@ -2,7 +2,7 @@ from flask import render_template, flash, redirect, session, url_for, request, g
 from flask.ext.login import login_user, logout_user, current_user, login_required
 from datetime import datetime
 from app import app, db, lm, oid
-from forms import LoginForm, EditForm, PostForm, SearchForm, OpenidLoginForm, SignupForm, CreateGroupForm
+from forms import LoginForm, EditForm, PostForm, SearchForm, OpenidLoginForm, SignupForm, CreateGroupForm, EditGroupForm
 from models import User, ROLE_USER, ROLE_ADMIN, Post, GENERAL_POST, PRAYER_POST, Photo, Group
 from config import POSTS_PER_PAGE, MAX_SEARCH_RESULTS, DATABASE_QUERY_TIMEOUT, SQLALCHEMY_RECORD_QUERIES
 from config import UPLOAD_IMG_DIR, ALLOWED_EXTENSIONS
@@ -168,7 +168,7 @@ def edit():
         if form.avatar_img.data:
             oldPic = g.user.photos.filter(Photo.isAvatar == True).first()
             f = request.files[form.avatar_img.name]
-            pic = Photo(fname = "", timestamp = datetime.utcnow(), owner = g.user, isAvatar = True)
+            pic = Photo(fname = "", timestamp = datetime.utcnow(), owner = g.user)
             if oldPic:
                 oldPic.isAvatar = False
                 db.session.add(oldPic)
@@ -177,7 +177,9 @@ def edit():
             #try:
             pic.fname = (str(pic.id)+"."+f.filename.split(".")[-1])
             f.save(os.path.join(UPLOAD_IMG_DIR, pic.fname))
+            g.user.set_avatar(pic)
             db.session.add(pic)
+            db.session.add(g.user)
             if oldPic: db.session.delete(oldPic)
             db.session.commit()
             if oldPic: oldPic.delete_files()
@@ -191,7 +193,7 @@ def edit():
                 flash('Unable to update photo.', 'error')'''
                 
         flash('Your changes have been saved.', 'info')
-        return redirect(url_for('edit'))
+        return redirect(url_for('user', nickname=g.user.nickname))
     else:
         form.nickname.data = g.user.nickname
         form.about_me.data = g.user.about_me
@@ -269,14 +271,104 @@ def following(nickname, page=1):
 # Group Function Views
 ########################################
 
-@app.route('/group/<group_name>')
-@app.route('/group/<group_name>/<int:page>')
+@app.route('/group/<group_name>', methods=['GET', 'POST'])
+@app.route('/group/<group_name>/<int:page>', methods=['GET', 'POST'])
 @login_required
 def group(group_name, page=1):
-    group = Group.query.filter_by(name==group_name).first()
-    if not group:
+    gr = Group.query.filter(Group.name==group_name).first()
+    if not gr:
         flash("'"+group_name+"' does not exist!", 'error')
         return redirect(url_for('home'))
+
+    postForm = PostForm()
+    postForm.postType.choices = [(GENERAL_POST, "Post"), (PRAYER_POST, "Prayer")]
+    if postForm.validate_on_submit():
+        post = Post(body = postForm.post.data, timestamp = datetime.utcnow(), author = g.user, group=gr, postType=postForm.postType.data)
+        db.session.add(post)
+        db.session.commit()
+        if postForm.postType.data == PRAYER_POST:    
+            flash('Your prayer post is now live!', 'info')
+        else:
+            flash('Your post is now live!', 'info')
+        return redirect(url_for('group', group_name=group_name))
+
+    postForm.postType.data = GENERAL_POST
+    posts = Post.query.filter(Post.group_id == gr.id).order_by(Post.timestamp.desc()).paginate(page, POSTS_PER_PAGE, False)
+    return render_template('group.html',
+                           group=gr,
+                           posts=posts,
+                           form=postForm,
+                           page="group")
+
+@app.route('/group/<group_name>/followers')
+@app.route('/group/<group_name>/followers/<int:page>')
+@login_required
+def groupFollowers(group_name, page=1):
+    gr = Group.query.filter_by(name = group_name).first()
+    if gr == None:
+        flash('group ' + group_name + ' not found.', 'error')
+        return redirect(url_for('home'))
+    profiles = gr.followers.order_by(User.nickname.asc()).paginate(page, POSTS_PER_PAGE, False)
+    return render_template('groupFollowers.html',
+        group = gr,
+        profiles = profiles)
+
+
+@app.route('/manageGroup/<group_name>', methods=['GET', 'POST'])
+@login_required
+def manageGroup(group_name):
+    editGroupForm = EditGroupForm(group_name)
+    group = Group.query.filter_by(name=group_name).first()
+    if not group:
+        flash("'"+group_name+"' does not exist!", 'error')
+        redirect(url_for('home'))
+        
+    if g.user != group.creator:
+        flash("You are not authorized to manage the group '"+group_name+"'!", 'error')
+        redirect(url_for('group', name=group_name))
+        
+    if request.method == 'POST': avatar_img_file = request.files[editGroupForm.avatar_img.name]
+    else: avatar_img_file = None
+
+    if editGroupForm.validate_on_submit(avatar_img_file):
+        group.name = editGroupForm.name.data
+        group.about = editGroupForm.about.data
+        db.session.add(group)
+        db.session.commit()
+        if editGroupForm.avatar_img.data:
+            if group.avatar_photo != None: oldPic = Photo.query.get(group.avatar_photo)
+            else: oldPic = None
+            f = request.files[editGroupForm.avatar_img.name]
+            pic = Photo(fname = "", timestamp = datetime.utcnow(), owner = g.user)
+            db.session.add(pic)
+            db.session.commit()
+            #try:
+            pic.fname = (str(pic.id)+"."+f.filename.split(".")[-1])
+            f.save(os.path.join(UPLOAD_IMG_DIR, pic.fname))
+            group.set_avatar(pic)
+            db.session.add(pic)
+            db.session.add(group)
+            if oldPic: db.session.delete(oldPic)
+            db.session.commit()
+            if oldPic: oldPic.delete_files()
+            '''except:
+                db.session.rollback()
+                if oldPic:
+                    oldPic.isAvatar=True
+                    db.session.add(oldPic)
+                db.session.delete(pic)
+                db.session.commit()
+                flash('Unable to update photo.', 'error')'''
+                
+        flash('Your changes have been saved.', 'info')
+        return redirect(url_for('group', group_name=group_name))
+    else:
+        editGroupForm.name.data = group.name
+        editGroupForm.about.data = group.about
+        
+    return render_template('manageGroup.html',
+        editGroupForm = editGroupForm,
+        group = group)
 
 ##@app.route('/createGroup', methods=['POST'])
 ##@login_required
@@ -285,22 +377,25 @@ def group(group_name, page=1):
 ##        return redirect(url_for('home'))
 ##    return redirect(url_for('search_results', searchType=g.search_form.searchType.data, query=g.search_form.search.data))
 
+@app.route('/followGroup/<group_name>')
+@login_required
+def followGroup(group_name):
+    group = Group.query.filter_by(name = group_name).first()
+    if group == None:
+        flash("Group '" + group_name + "' not found.", 'error')
+        return redirect(url_for('home'))
 
-##@app.route('/followGroup/<group_name>')
-##@login_required
-##def followGroup(group_name):
-##    group = Group.query.filter_by(Group.name = group_name).first()
-##    u = g.user.follow_group(group)
-##    if u is None:
-##        flash('Cannot follow ' + group_name + '.', 'error')
-##        return redirect(url_for('group', group_name=group_name))
-##    db.session.add(u)
-##    db.session.commit()
-##    
-##    follower_notification(group.creator, g.user)
-##    flash('You are now following ' + nickname + '!', 'info')
-##    return redirect(url_for('user', nickname = nickname))
-##
+    u = g.user.follow_group(group)
+    if u is None:
+        flash('Cannot follow ' + group_name + '.', 'error')
+        return redirect(url_for('group', group_name=group_name))
+    db.session.add(u)
+    db.session.commit()
+
+    #follower_notification(group.creator, g.user)
+    flash('You are now following ' + group_name + '!', 'info')
+    return redirect(url_for('group', group_name = group_name))
+
 ##@app.route('/unfollow/<nickname>')
 ##@login_required
 ##def unfollow(nickname):
