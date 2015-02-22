@@ -26,7 +26,7 @@ def atMC():
 @login_required
 def home(page=1, theme=None):    
     #only followed posts
-    posts = g.user.followed_posts().paginate(page, POSTS_PER_PAGE, False)
+    posts = g.user.all_followed_posts().paginate(page, POSTS_PER_PAGE, False)
     
     return render_template('home.html', title = 'Home', posts = posts, page = 'home', theme=theme)
 
@@ -110,7 +110,7 @@ def register():
         u.set_password(form.password.data)
         db.session.add(u)
         db.session.commit()
-        db.session.add(u.follow(u))
+        db.session.add(u.follow_user(u))
         db.session.commit()        
         flash('You are now signed up!', 'success')
         #send emaiil
@@ -201,9 +201,9 @@ def edit():
         form = form,
         user = g.user)
 
-@app.route('/follow/<nickname>')
+@app.route('/followUser/<nickname>')
 @login_required
-def follow(nickname):
+def followUser(nickname):
     user = User.query.filter_by(nickname = nickname).first()
     if user == None:
         flash('User ' + nickname + ' not found.', 'error')
@@ -211,7 +211,7 @@ def follow(nickname):
     if user == g.user:
         flash('You can\'t follow yourself!', 'error')
         return redirect(url_for('user', nickname = nickname))
-    u = g.user.follow(user)
+    u = g.user.follow_user(user)
     if u is None:
         flash('Cannot follow ' + nickname + '.', 'error')
         return redirect(url_for('user', nickname = nickname))
@@ -224,7 +224,7 @@ def follow(nickname):
 
 @app.route('/unfollow/<nickname>')
 @login_required
-def unfollow(nickname):
+def unfollowUser(nickname):
     user = User.query.filter_by(nickname = nickname).first()
     if user == None:
         flash('User ' + nickname + ' not found.', 'error')
@@ -232,7 +232,7 @@ def unfollow(nickname):
     if user == g.user:
         flash('You can\'t unfollow yourself!', 'error')
         return redirect(url_for('user', nickname = nickname))
-    u = g.user.unfollow(user)
+    u = g.user.unfollow_user(user)
     if u is None:
         flash('Cannot unfollow ' + nickname + '.', 'error')
         return redirect(url_for('user', nickname = nickname))
@@ -308,7 +308,7 @@ def groupFollowers(group_name, page=1):
     if gr == None:
         flash('group ' + group_name + ' not found.', 'error')
         return redirect(url_for('home'))
-    profiles = gr.followers.order_by(User.nickname.asc()).paginate(page, POSTS_PER_PAGE, False)
+    profiles = gr.onlyFollowers().paginate(page, POSTS_PER_PAGE, False)
     return render_template('groupFollowers.html',
         group = gr,
         profiles = profiles)
@@ -396,24 +396,24 @@ def followGroup(group_name):
     flash('You are now following ' + group_name + '!', 'info')
     return redirect(url_for('group', group_name = group_name))
 
-##@app.route('/unfollow/<nickname>')
-##@login_required
-##def unfollow(nickname):
-##    user = User.query.filter_by(nickname = nickname).first()
-##    if user == None:
-##        flash('User ' + nickname + ' not found.', 'error')
-##        return redirect(url_for('home'))
-##    if user == g.user:
-##        flash('You can\'t unfollow yourself!', 'error')
-##        return redirect(url_for('user', nickname = nickname))
-##    u = g.user.unfollow(user)
-##    if u is None:
-##        flash('Cannot unfollow ' + nickname + '.', 'error')
-##        return redirect(url_for('user', nickname = nickname))
-##    db.session.add(u)
-##    db.session.commit()
-##    flash('You have stopped following ' + nickname + '.', 'info')
-##    return redirect(url_for('user', nickname = nickname))
+@app.route('/unfollowGroup/<group_name>')
+@login_required
+def unfollowGroup(group_name):
+    group = Group.query.filter_by(name = group_name).first()
+    if group == None:
+        flash("Group '" + group_name + "' not found.", 'error')
+        return redirect(url_for('home'))
+
+    u = g.user.unfollow_group(group)
+    if u is None:
+        flash('Cannot follow ' + group_name + '.', 'error')
+        return redirect(url_for('group', group_name=group_name))
+    db.session.add(u)
+    db.session.commit()
+
+    #follower_notification(group.creator, g.user)
+    flash('You have stopped following ' + group_name + '.', 'info')
+    return redirect(url_for('group', group_name = group_name))
 
 
 @app.route('/explore')
@@ -421,7 +421,7 @@ def followGroup(group_name):
 @login_required
 def explore(page = 1):
     #only unollowed posts
-    posts = g.user.unfollowed_posts().paginate(page, POSTS_PER_PAGE, False)
+    posts = g.user.all_unfollowed_posts().paginate(page, POSTS_PER_PAGE, False)
     #all posts
     #posts = Post.query.order_by(Post.timestamp.desc()).paginate(page, POSTS_PER_PAGE, False)
     return render_template('explore.html',
@@ -452,10 +452,12 @@ def search():
 def search_results(searchType, query):
     print "searchType", searchType
     if searchType=="Posts":
-        results = g.user.followed_posts().whoosh_search(query, MAX_SEARCH_RESULTS).all()
+        results = g.user.all_followed_posts().whoosh_search(query, MAX_SEARCH_RESULTS).all()
         # Post.query.whoosh_search(query, MAX_SEARCH_RESULTS).all()
     elif searchType =="Users":
-        results = User.query.filter(User.nickname.ilike("%"+str(query)+"%")).all()
+        results = User.query.filter(User.nickname.ilike("%"+str(query)+"%")).limit(MAX_SEARCH_RESULTS).all()
+    elif searchType == "Groups":
+        results = Group.query.filter(Group.name.ilike("%"+str(query)+"%")).limit(MAX_SEARCH_RESULTS).all()
     else:
         flash('Invalid search type', 'error')
         results = None
@@ -534,7 +536,7 @@ def after_oidlogin(resp):
         db.session.add(user)
         db.session.commit()
         # make the user follow him/herself
-        db.session.add(user.follow(user))
+        db.session.add(user.follow_user(user))
         db.session.commit()
     remember_me = False
     if 'remember_me' in session:

@@ -82,17 +82,17 @@ class TestCase(unittest.TestCase):
         db.session.add(u1)
         db.session.add(u2)
         db.session.commit()
-        assert u1.unfollow(u2) == None
-        u = u1.follow(u2)
+        assert u1.unfollow_user(u2) == None
+        u = u1.follow_user(u2)
         db.session.add(u)
         db.session.commit()
-        assert u1.follow(u2) == None
+        assert u1.follow_user(u2) == None
         assert u1.is_following(u2)
         assert u1.followed.count() == 1
         assert u1.followed.first().nickname == 'susan'
         assert u2.followers.count() == 1
         assert u2.followers.first().nickname == 'john'
-        u = u1.unfollow(u2)
+        u = u1.unfollow_user(u2)
         assert u != None
         db.session.add(u)
         db.session.commit()
@@ -115,7 +115,7 @@ class TestCase(unittest.TestCase):
         db.session.delete(p)
         db.session.commit()
 
-    def test_follow_posts(self):
+    def test_followed_posts(self):
         # make four users
         u1 = User(nickname='john', email='john@example.com')
         u2 = User(nickname='susan', email='susan@example.com')
@@ -125,44 +125,93 @@ class TestCase(unittest.TestCase):
         db.session.add(u2)
         db.session.add(u3)
         db.session.add(u4)
-        # make four posts
+
+        # make four groups
+        g1 = Group(name="group1", about='Group 1 about', creator=u1)
+        g2 = Group(name="group2", about='Group 2 about', creator=u2)
+        g3 = Group(name="group3", about='Group 3 about', creator=u1)
+
+        # join groups
+        u2.join_group(g1)
+        u3.join_group(g3)
+        u3.join_group(g2)
+
+        db.session.add_all([u1, u2, u3, u4, g1, g2, g3])
+        db.session.commit()
+
+        # make 6 posts
         utcnow = datetime.utcnow()
         p1 = Post(body="post from john", author=u1, timestamp=utcnow + timedelta(seconds=1))
-        p2 = Post(body="post from susan", author=u2, timestamp=utcnow + timedelta(seconds=2))
-        p3 = Post(body="post from mary", author=u3, timestamp=utcnow + timedelta(seconds=3))
+        p2 = Post(body="post from susan in group1", author=u2, timestamp=utcnow + timedelta(seconds=2), group=g1)
+        p3 = Post(body="post from mary in group3", author=u3, timestamp=utcnow + timedelta(seconds=3), group=g3)
         p4 = Post(body="post from david", author=u4, timestamp=utcnow + timedelta(seconds=4))
-        db.session.add(p1)
-        db.session.add(p2)
-        db.session.add(p3)
-        db.session.add(p4)
+        p5 = Post(body="post from mary in group2", author=u3, timestamp=utcnow+timedelta(seconds=5), group=g2)
+        p6 = Post(body="post from john in group3", author=u1, timestamp=utcnow+timedelta(seconds=6), group=g3)
+
+        db.session.add_all([p1, p2, p3, p4, p5, p6])
         db.session.commit()
-        # setup the followers
-        u1.follow(u1)  # john follows himself
-        u1.follow(u2)  # john follows susan
-        u1.follow(u4)  # john follows david
-        u2.follow(u2)  # susan follows herself
-        u2.follow(u3)  # susan follows mary
-        u3.follow(u3)  # mary follows herself
-        u3.follow(u4)  # mary follows david
-        u4.follow(u4)  # david follows himself
+        # setup the user followers
+        u1.follow_user(u1)  # john follows himself
+        u1.follow_user(u2)  # john follows susan
+        u1.follow_user(u4)  # john follows david
+        u2.follow_user(u2)  # susan follows herself
+        u2.follow_user(u3)  # susan follows mary
+        u3.follow_user(u3)  # mary follows herself
+        u3.follow_user(u4)  # mary follows david
+        u4.follow_user(u4)  # david follows himself
+
+        # setup group followers
+        u1.follow_group(g2)
+        u4.follow_group(g3)
+
         db.session.add(u1)
         db.session.add(u2)
         db.session.add(u3)
         db.session.add(u4)
         db.session.commit()
-        # check the followed posts of each user
-        f1 = u1.followed_posts().all()
-        f2 = u2.followed_posts().all()
-        f3 = u3.followed_posts().all()
-        f4 = u4.followed_posts().all()
-        assert len(f1) == 3
-        assert len(f2) == 2
-        assert len(f3) == 2
-        assert len(f4) == 1
-        assert f1 == [p4, p2, p1]
-        assert f2 == [p3, p2]
-        assert f3 == [p4, p3]
-        assert f4 == [p4]
+
+        # check the followed user posts of each user
+        fup1 = u1.followed_user_posts().all()
+        fup2 = u2.followed_user_posts().all()
+        fup3 = u3.followed_user_posts().all()
+        fup4 = u4.followed_user_posts().all()
+        assert len(fup1) == 4
+        assert len(fup2) == 3
+        assert len(fup3) == 3
+        assert len(fup4) == 1
+        assert fup1 == [p6, p4, p2, p1]
+        assert fup2 == [p5, p3, p2]
+        assert fup3 == [p5, p4, p3]
+        assert fup4 == [p4]
+
+        # check the followed group posts of each user
+        fgp1 = u1.followed_group_posts().all()
+        fgp2 = u2.followed_group_posts().all()
+        fgp3 = u3.followed_group_posts().all()
+        fgp4 = u4.followed_group_posts().all()
+        assert len(fgp1) == 4
+        assert len(fgp2) == 2
+        assert len(fgp3) == 3
+        assert len(fgp4) == 2
+        assert fgp1 == [p6, p5, p3, p2]
+        assert fgp2 == [p5, p2]
+        assert fgp3 == [p6, p5, p3]
+        assert fgp4 == [p6, p3]
+
+        # check all followed posts of each user
+        afp1 = u1.all_followed_posts().all()
+        afp2 = u2.all_followed_posts().all()
+        afp3 = u3.all_followed_posts().all()
+        afp4 = u4.all_followed_posts().all()
+        assert len(afp1) == 6
+        assert len(afp2) == 3
+        assert len(afp3) == 4
+        assert len(afp4) == 3
+        assert afp1 == [p6, p5, p4, p3, p2, p1]
+        assert afp2 == [p5, p3, p2]
+        assert afp3 == [p6, p5, p4, p3]
+        assert afp4 == [p6, p4, p3]
+
 
     def test_unfollowed_posts(self):
         # make four users
@@ -174,45 +223,92 @@ class TestCase(unittest.TestCase):
         db.session.add(u2)
         db.session.add(u3)
         db.session.add(u4)
-        # make four posts
+
+        # make four groups
+        g1 = Group(name="group1", about='Group 1 about', creator=u1)
+        g2 = Group(name="group2", about='Group 2 about', creator=u2)
+        g3 = Group(name="group3", about='Group 3 about', creator=u1)
+
+        # join groups
+        u2.join_group(g1)
+        u3.join_group(g3)
+        u3.join_group(g2)
+
+        db.session.add_all([u1, u2, u3, u4, g1, g2, g3])
+        db.session.commit()
+
+        # make 6 posts
         utcnow = datetime.utcnow()
         p1 = Post(body="post from john", author=u1, timestamp=utcnow + timedelta(seconds=1))
-        p2 = Post(body="post from susan", author=u2, timestamp=utcnow + timedelta(seconds=2))
-        p3 = Post(body="post from mary", author=u3, timestamp=utcnow + timedelta(seconds=3))
+        p2 = Post(body="post from susan in group1", author=u2, timestamp=utcnow + timedelta(seconds=2), group=g1)
+        p3 = Post(body="post from mary in group3", author=u3, timestamp=utcnow + timedelta(seconds=3), group=g3)
         p4 = Post(body="post from david", author=u4, timestamp=utcnow + timedelta(seconds=4))
-        db.session.add(p1)
-        db.session.add(p2)
-        db.session.add(p3)
-        db.session.add(p4)
+        p5 = Post(body="post from mary in group2", author=u3, timestamp=utcnow+timedelta(seconds=5), group=g2)
+        p6 = Post(body="post from john in group3", author=u1, timestamp=utcnow+timedelta(seconds=6), group=g3)
+
+        db.session.add_all([p1, p2, p3, p4, p5, p6])
         db.session.commit()
-        # setup the followers
-        u1.follow(u1)  # john follows himself
-        u1.follow(u2)  # john follows susan
-        u1.follow(u4)  # john follows david
-        u2.follow(u2)  # susan follows herself
-        u2.follow(u3)  # susan follows mary
-        u3.follow(u3)  # mary follows herself
-        u3.follow(u4)  # mary follows david
-        u4.follow(u4)  # david follows himself
+        # setup the user followers
+        u1.follow_user(u1)  # john follows himself
+        u1.follow_user(u2)  # john follows susan
+        u1.follow_user(u4)  # john follows david
+        u2.follow_user(u2)  # susan follows herself
+        u2.follow_user(u3)  # susan follows mary
+        u3.follow_user(u3)  # mary follows herself
+        u3.follow_user(u4)  # mary follows david
+        u4.follow_user(u4)  # david follows himself
+
+        # setup group followers
+        u1.follow_group(g2)
+        u4.follow_group(g3)
+
         db.session.add(u1)
         db.session.add(u2)
         db.session.add(u3)
         db.session.add(u4)
         db.session.commit()
-        # check the followed posts of each user
-        f1 = u1.unfollowed_posts().all()
-        f2 = u2.unfollowed_posts().all()
-        f3 = u3.unfollowed_posts().all()
-        f4 = u4.unfollowed_posts().all()
-        
-        assert len(f1) == 1
-        assert len(f2) == 2
-        assert len(f3) == 2
-        assert len(f4) == 3
-        assert f1 == [p3]
-        assert f2 == [p4, p1]
-        assert f3 == [p2, p1]
-        assert f4 == [p3, p2, p1]
+
+        # check the followed user posts of each user
+        ufup1 = u1.unfollowed_user_posts().all()
+        ufup2 = u2.unfollowed_user_posts().all()
+        ufup3 = u3.unfollowed_user_posts().all()
+        ufup4 = u4.unfollowed_user_posts().all()
+        assert len(ufup1) == 2
+        assert len(ufup2) == 3
+        assert len(ufup3) == 3
+        assert len(ufup4) == 5
+        assert ufup1 == [p5, p3]
+        assert ufup2 == [p6, p4, p1]
+        assert ufup3 == [p6, p2, p1]
+        assert ufup4 == [p6, p5, p3, p2, p1]
+
+        # check the followed group posts of each user
+        ufgp1 = u1.unfollowed_group_posts().all()
+        ufgp2 = u2.unfollowed_group_posts().all()
+        ufgp3 = u3.unfollowed_group_posts().all()
+        ufgp4 = u4.unfollowed_group_posts().all()
+        assert len(ufgp1) == 2
+        assert len(ufgp2) == 4
+        assert len(ufgp3) == 3
+        assert len(ufgp4) == 4
+        assert ufgp1 == [p4, p1]
+        assert ufgp2 == [p6, p4, p3, p1]
+        assert ufgp3 == [p4, p2, p1]
+        assert ufgp4 == [p5, p4, p2, p1]
+
+        # check all followed posts of each user
+        aufp1 = u1.all_unfollowed_posts().all()
+        aufp2 = u2.all_unfollowed_posts().all()
+        aufp3 = u3.all_unfollowed_posts().all()
+        aufp4 = u4.all_unfollowed_posts().all()
+        assert len(aufp1) == 0
+        assert len(aufp2) == 3
+        assert len(aufp3) == 2
+        assert len(aufp4) == 3
+        assert aufp1 == []
+        assert aufp2 == [p6, p4, p1]
+        assert aufp3 == [p2, p1]
+        assert aufp4 == [p5, p2, p1]
 
     def test_group(self):
         # make 4 users
@@ -276,21 +372,16 @@ class TestCase(unittest.TestCase):
         assert g3_posts == []
         assert independentPosts == [p4]
 
-        # add meberships and follow groups
-        u1.join_group(g1)
+        # add memberships and follow groups
+        # note that members automatically follow that group
+        # creators of groups are automatically members and therefore followers too
         u1.join_group(g2)
-        u1.join_group(g3)
         u2.join_group(g1)
-        u2.join_group(g2)
         u3.join_group(g1)
 
         u4.follow_group(g1)
         u4.follow_group(g2)
         u4.follow_group(g3)
-        u3.follow_group(g2)
-        u3.follow_group(g1)
-        u2.follow_group(g2)
-        u1.follow_group(g3)
 
         db.session.add(u1)
         db.session.add(u2)
@@ -299,51 +390,54 @@ class TestCase(unittest.TestCase):
         db.session.commit()
 
         # check memberships
-        u1_memberships = u1.groupMemberships.all()
-        u2_memberships = u2.groupMemberships.all()
-        u3_memberships = u3.groupMemberships.all()
-        u4_memberships = u4.groupMemberships.all()
+        u1_memberships = u1.groupMemberships.order_by(Group.id.asc()).all()
+        u2_memberships = u2.groupMemberships.order_by(Group.id.asc()).all()
+        u3_memberships = u3.groupMemberships.order_by(Group.id.asc()).all()
+        u4_memberships = u4.groupMemberships.order_by(Group.id.asc()).all()
 
         assert len(u1_memberships) == 3
-        assert len(u2_memberships) == 2
-        assert len(u3_memberships) == 1
+        assert len(u2_memberships) == 1
+        assert len(u3_memberships) == 2
         assert len(u4_memberships) == 0
         assert u1_memberships == [g1, g2, g3]
-        assert u2_memberships == [g1, g2]
-        assert u3_memberships == [g1]
+        assert u2_memberships == [g1]
+        assert u3_memberships == [g1, g2]
         assert u4_memberships == []
 
         #check following
-        u1_following = u1.followedGroups.all()
-        u2_following = u2.followedGroups.all()
-        u3_following = u3.followedGroups.all()
-        u4_following = u4.followedGroups.all()
+        u1_following = u1.followedGroups.order_by(Group.id.asc()).all()
+        u2_following = u2.followedGroups.order_by(Group.id.asc()).all()
+        u3_following = u3.followedGroups.order_by(Group.id.asc()).all()
+        u4_following = u4.followedGroups.order_by(Group.id.asc()).all()
 
-        assert len(u1_following) == 1
+        assert len(u1_following) == 3
         assert len(u2_following) == 1
         assert len(u3_following) == 2
         assert len(u4_following) == 3
-        assert u1_following == [g3]
-        assert u2_following == [g2]
-        assert u3_following == [g2, g1]
+        assert u1_following == [g1, g2, g3]
+        assert u2_following == [g1]
+        assert u3_following == [g1, g2]
         assert u4_following == [g1, g2, g3]
         
         
 
         # remove membership and following
         u1.unjoin_group(g2)
-        u2.unfollow_group(g2)
+        u4.unfollow_group(g2)
         db.session.add(u1)
-        db.session.add(u2)
+        db.session.add(u4)
         db.session.commit()
 
         u1_memberships = u1.groupMemberships.all()
-        u2_following = u2.followedGroups.all()
+        u1_following = u1.followedGroups.order_by(Group.id.asc()).all()
+        u4_following = u4.followedGroups.order_by(Group.id.asc()).all()
         
         assert len(u1_memberships) == 2
         assert u1_memberships == [g1, g3]
-        assert len(u2_following) == 0
-        assert u2_following == []     
+        assert len(u1_following) == 2
+        assert u1_following == [g1, g3]
+        assert len(u4_following) == 2
+        assert u4_following == [g1, g3]
         
     def test_password(self):
         u1 = User(nickname = 'john', email = 'john@example.com', password=User.hash_password('secret'))

@@ -11,12 +11,14 @@
             <p><a href="{{url_for('groupFollowers', group_name=group.name)}}"> Followers: {{ group.followers.count() - group.members.count() }}</a> |
             {% if group.creator == g.user %}
                 <a href="{{url_for('manageGroup', group_name=group.name)}}">Manage this group</a>
-            {% elif not g.user.is_group_member(group) %}
+            {% elif g.user.is_group_member(group) %}
+                <a href="#">Unjoin</a>
+            {% else %}
                 <a href="#">Request to Join</a>
                 {% if not g.user.is_group_follower(group) %}
                 | <a href="{{url_for('followGroup', group_name=group.name)}}">Follow</a>
                 {% else %}
-                | <a href="#">Unfollow</a>
+                | <a href="{{url_for('unfollowGroup', group_name=group.name)}}">Unfollow</a>
                 {% endif %}
             {% endif %}
             </p>

@@ -1,31 +1,31 @@
 from flask.ext.wtf import Form
 from wtforms import TextField, BooleanField, TextAreaField, StringField, RadioField, FileField, HiddenField
-from wtforms.validators import Required, Length, DataRequired
+from wtforms.validators import Length, DataRequired
 from app.models import User, Photo
 
 IMAGE_EXT = ['jpg', 'tif', 'png']
 
 class CreateGroupForm(Form):
-    groupName = TextField('groupNameForm', validators=[Required()])
+    groupName = TextField('groupNameForm', validators=[DataRequired()])
     groupAbout = TextField('groupAboutForm', validators=[Length(min=0, max=140)])
 
 class OpenidLoginForm(Form):
-    openid = TextField('openid', validators = [Required()])
+    openid = TextField('openid', validators = [DataRequired()])
     remember_me = BooleanField('remember_me', default = False)
 
 class LoginForm(Form):
-    email = TextField('email', validators=[Required()])
-    password = TextField('password', validators=[Required()])
+    email = TextField('email', validators=[DataRequired()])
+    password = TextField('password', validators=[DataRequired()])
     remember_me = BooleanField('remember_me', default = False)
 
 class SignupForm(Form):
-    nickname = TextField('nickname', validators=[Required()])
-    email = TextField('email', validators=[Required()])
-    password = TextField('password', validators=[Required()])
-    password_confirm = TextField('password', validators=[Required()])
+    nickname = TextField('nickname', validators=[DataRequired()])
+    email = TextField('email', validators=[DataRequired()])
+    password = TextField('password', validators=[DataRequired()])
+    password_confirm = TextField('password', validators=[DataRequired()])
 
 class EditForm(Form):
-    nickname = TextField('nickname', validators = [Required()])
+    nickname = TextField('nickname', validators = [DataRequired()])
     about_me = TextAreaField('about_me', validators = [Length(min=0, max=140)])
     avatar_img = FileField('avatar_img')
 
@@ -64,15 +64,15 @@ class EditForm(Form):
     
 
 class PostForm(Form):
-    post = TextAreaField('post', validators = [Required()])
-    postType = RadioField('postType', coerce=int, validators = [Required()])
+    post = TextAreaField('post', validators = [DataRequired()])
+    postType = RadioField('postType', coerce=int, validators = [DataRequired()])
     
 class SearchForm(Form):
     search = StringField('search', validators=[DataRequired()])
-    searchType = HiddenField('searchType', default="Posts", validators = [Required()])
+    searchType = HiddenField('searchType', default="Posts", validators = [DataRequired()])
 
 class EditGroupForm(Form):
-    name = TextField('name', validators = [Required()])
+    name = TextField('name', validators = [DataRequired()])
     about = TextAreaField('about', validators = [Length(min=0, max=140)])
     avatar_img = FileField('avatar_img')
 

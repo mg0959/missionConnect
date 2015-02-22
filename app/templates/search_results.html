@@ -12,7 +12,10 @@
     {% for profile in results %}
         {% include 'profile.html' %}
     {% endfor %}
-    
+{% elif searchType == "Groups"%}
+    {% for profile in results %}
+        {% include 'groupProfile.html' %}
+    {% endfor %}
 {% else %}
     No searchType Match
 {% endif %}

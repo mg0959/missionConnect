@@ -35,6 +35,10 @@ postGroup = db.Table('postGroup',
                      db.Column('post_id', db.Integer, db.ForeignKey('post.id')),
                      db.Column('group_id', db.Integer, db.ForeignKey('group.id')))
 
+invitations = db.Table('invitations',
+                       db.Column('invited_id', db.Integer, db.ForeignKey('user.id')),
+                       db.Column('group_id', db.Integer, db.ForeignKey('group.id')))
+
             
 
 class Group(db.Model):    
@@ -44,6 +48,10 @@ class Group(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     posts = db.relationship('Post', backref = 'group', lazy = 'dynamic')
     avatar_photo = db.Column(db.Integer)
+
+    def __init__(self, *args, **kwargs):
+        db.Model.__init__(self, *args, **kwargs)
+        self.creator.join_group(self)
 
     def set_avatar(self, photo):
         self.avatar_photo = photo.id
@@ -57,7 +65,29 @@ class Group(db.Model):
             return url_for('.static', filename='img/userImages/'+db_image.fname.split(".")[0]+ "_thumb_"+str(size)+".jpg")
         else:
             return  url_for('.static', filename='img/default_profile.jpg')
-        
+
+    def onlyFollowers(self):
+        memAlias = db.aliased(User, self.members.subquery())
+        return self.followers.outerjoin(memAlias, User.id==memAlias.id).filter(memAlias.id == None).order_by(User.nickname.asc())
+
+    ############################
+    # invite/uninvite users
+    ############################
+    def invite_user(self, user):
+        if not self.is_invited(user):
+            self.invited.append(user)
+            return self
+
+    def unfollow_user(self, user):
+        if self.is_invited(user):
+            self.invited.remove(user)
+            return self
+
+    def is_invited(self, user):
+        return self.invited.filter(invitations.c.invited_id == user.id).count()>0
+
+    ############################
+
     def __repr__(self): # pragma: no cover
         return '<Group %r>' % (self.name)
     
@@ -98,6 +128,12 @@ class User(db.Model):
                                      secondaryjoin = (groupFollowers.c.group_id == Group.id),
                                      backref = db.backref('followers', lazy='dynamic'),
                                      lazy='dynamic')
+    groupInvitations = db.relationship('Group',
+                               secondary = invitations,
+                               primaryjoin = (invitations.c.invited_id == id),
+                               secondaryjoin = (invitations.c.group_id == Group.id),
+                               backref = db.backref('invited', lazy = 'dynamic'),
+                               lazy = 'dynamic')
 
     # basic User property functions
     def is_authenticated(self):
@@ -116,12 +152,12 @@ class User(db.Model):
     # follow/unfollow users
     ############################
     
-    def follow(self, user):
+    def follow_user(self, user):
         if not self.is_following(user):
             self.followed.append(user)
             return self
 
-    def unfollow(self, user):
+    def unfollow_user(self, user):
         if self.is_following(user):
             self.followed.remove(user)
             return self
@@ -169,13 +205,31 @@ class User(db.Model):
     # get Posts
     ############################
     
-    def followed_posts(self):
-        return Post.query.join(followers, (followers.c.followed_id == Post.user_id)).filter(followers.c.follower_id == self.id).order_by(Post.timestamp.desc())
+    def followed_user_posts(self):
+        return Post.query.join(followers, followers.c.followed_id == Post.user_id).filter(followers.c.follower_id == self.id).order_by(Post.timestamp.desc())
 
-    def unfollowed_posts(self):
-        followed_posts_ids = map(lambda given_post: given_post.id, self.followed_posts().all())
-        return Post.query.filter(~Post.id.in_(followed_posts_ids)).order_by(Post.timestamp.desc())
-    
+    def unfollowed_user_posts(self):
+        postAlias = db.aliased(Post, self.followed_user_posts().subquery())
+        return Post.query.outerjoin(postAlias, Post.user_id==postAlias.user_id).filter(postAlias.id == None).order_by(Post.timestamp.desc())
+
+    def followed_group_posts(self):
+        return Post.query.join(groupFollowers, groupFollowers.c.group_id == Post.group_id).filter(groupFollowers.c.follower_id == self.id).order_by(Post.timestamp.desc())
+
+    def unfollowed_group_posts(self):
+        fgpAlias = db.aliased(Post, self.followed_group_posts().subquery())
+        return Post.query.outerjoin(fgpAlias, Post.group_id==fgpAlias.group_id).filter(fgpAlias.id == None).order_by(Post.timestamp.desc())
+
+    def all_followed_posts(self):
+        # followed user posts alias
+        fupAlias = db.aliased(Post, self.followed_user_posts().subquery())
+        fgpAlias = db.aliased(Post, self.followed_group_posts().subquery())
+        return Post.query.outerjoin(fupAlias, Post.id == fupAlias.id).outerjoin(fgpAlias, Post.id == fgpAlias.id).filter(db.or_(fupAlias.id != None, fgpAlias.id != None)).order_by(Post.timestamp.desc())
+
+    def all_unfollowed_posts(self):
+        # followed user posts alias
+        afpAlias = db.aliased(Post, self.all_followed_posts().subquery())
+        return Post.query.outerjoin(afpAlias, Post.id==afpAlias.id).filter(afpAlias.id == None).order_by(Post.timestamp.desc())
+
     ############################
     # User Profile Settings
     ############################
@@ -235,10 +289,6 @@ class User(db.Model):
         salt = uuid.uuid4().hex
         return hashlib.sha224(salt.encode() + password.encode()).hexdigest() + ':' + salt
    
-
-
-
-
 
 #Post types
 GENERAL_POST = 1
