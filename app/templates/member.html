@@ -1,0 +1,4 @@
+<div class="media">
+    <a class="media-left" href="{{ url_for('user', nickname=profile.nickname) }}"><img class="ceenter-block img-rounded" src="{{ profile.avatar(70) }}" /></a>
+    <div class="media-body media-middle"><a class="media-heading" href="{{ url_for('user', nickname=profile.nickname) }}">{{ profile.nickname }}</a></div>
+</div>

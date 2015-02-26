@@ -1,0 +1,160 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+
+{% block content %}
+    <h1>Manage Your Group</h1>
+    {% include 'flash.html' %}
+    <div class="panel-group" id="panel1">
+
+      <!--Edit Group properties-->
+       <div class="panel panel-default">
+         <div class="panel-heading" data-toggle="collapse" data-parent="#panel1" href="#editCollapse" style="cursor:pointer">
+           <h3 class="panel-title">
+             Edit Group <span class="glyphicon glyphicon-chevron-down pull-right" aria-hidden="true"></span>
+           </h3>
+         </div>
+         <div id="editCollapse" class="panel-collapse collapse in">
+           <div class="panel-body">
+              <form class="form-horizontal" action="{{url_for('submitGroupEdits', group_name=group.name)}}" method="post" name="edit" enctype="multipart/form-data">
+                  {{ editGroupForm.hidden_tag() }}
+                  <div class="control-group">
+                      <div class="control-group">
+                          <img src="{{ group.avatar(128) }}" class="img-polaroid">
+                      </div>
+                      <p></p>
+                      <div class="control-group">
+                          {{editGroupForm.avatar_img(accept="image/png, .jpg")}}
+                          {% for error in editGroupForm.avatar_img.errors %}
+                              <span class="text-error">[{{ error }}]</span><br>
+                          {% endfor %}
+                      </div>
+                  </div>
+                  <div class="control-group{% if editGroupForm.name.errors %} error{% endif %}">
+                      <!--suppress XmlInvalidId -->
+                    <label class="control-label" for="name">Your group name:</label>
+                      <div class="controls">
+                          {{ editGroupForm.name(maxlength=64, class="span4") }}
+                          {% for error in editGroupForm.name.errors %}
+                              <span class="help-inline">[{{ error }}]</span><br>
+                          {% endfor %}
+                      </div>
+                  </div>
+                  <div class="control-group{% if editGroupForm.about.errors %} error{% endif %}">
+                      <!--suppress XmlInvalidId -->
+                    <label class="control-label" for="about">About your group:</label>
+                      <div class="controls">
+                          {{ editGroupForm.about(cols=64, rows=4, class="span4") }}
+                          {% for error in editGroupForm.about.errors %}
+                              <span class="help-inline">[{{ error }}]</span><br>
+                          {% endfor %}
+                      </div>
+                  </div>
+                  <div class="control-group">
+                      <div class="controls">
+                          <input class="btn btn-primary" type="submit" value="Save Changes">
+                      </div>
+                  </div>
+              </form>
+           </div>
+         </div>
+       </div>
+
+      <!--Manage Members-->
+      <div class="panel panel-default">
+         <div class="panel-heading" data-toggle="collapse" data-parent="#panel1" href="#membersCollapse" style="cursor:pointer">
+           <h3 class="panel-title">
+             Manage Members <span class="glyphicon glyphicon-chevron-down pull-right" aria-hidden="true"></span>
+           </h3>
+         </div>
+         <div id="membersCollapse" class="panel-collapse collapse">
+           <div class="panel-body">
+               <!--Current Members-->
+               <div class="panel panel-info">
+                   <div class="panel-heading" style="cursor:pointer" data-toggle="collapse" href="#currentMembersCollapse" aria-expanded="false" aria-controls="currentMembersCollapse">
+                       <h4 class="panel-title">
+                           Current Members: <span class="badge">{{group.members.count()}}</span> <span class="glyphicon glyphicon-chevron-down pull-right" aria-hidden="true"></span>
+                       </h4>
+                   </div>
+                   <div class="panel-collapse collapse in" id="currentMembersCollapse">
+                       <div class="panel-body">
+                           {% for profile in group.members.all() %}
+                           <div class="col-md-4">
+                               {% include 'member.html' %}
+                           </div>
+                           {% endfor %}
+                       </div>
+                   </div>
+               </div>
+               <!--Pending Invitations-->
+               <div class="panel panel-info">
+                   <div class="panel-heading" style="cursor:pointer" data-toggle="collapse" href="#invitedMembersCollapse" aria-expanded="false" aria-controls="invitedMembersCollapse">
+                       <h4 class="panel-title">
+                           Pending Invites: <span class="badge">{{group.invited.count()}}</span> <span class="glyphicon glyphicon-chevron-down pull-right" aria-hidden="true"></span>
+                       </h4>
+                   </div>
+                   <div class="panel-collapse collapse" id="invitedMembersCollapse">
+                       <div class="panel-body">
+                           {% for profile in group.invited.all() %}
+                           <div class="col-md-4">
+                               {% include 'member.html' %}
+                           </div>
+                           {% endfor %}
+                       </div>
+                   </div>
+               </div>
+               <!--Invite-->
+               <div class="panel panel-info">
+                   <div class="panel-heading" style="cursor:pointer" data-toggle="collapse" href="#inviteNewCollapse" aria-expanded="false" aria-controls="inviteNewCollapse">
+                       <h4 class="panel-title">
+                           Invite New Members <span class="glyphicon glyphicon-chevron-down pull-right" aria-hidden="true"></span>
+                       </h4>
+                   </div>
+                   <div class="panel-collapse collapse" id="inviteNewCollapse">
+                       <div class="panel-body">
+                           <form class="form-horizontal col-sm-offset-1 col-sm-10" action="{{url_for('submitGroupInvites', group_name=group.name)}}" method="post" name="invite">
+                               {{ invitationGroupForm.hidden_tag()}}
+                               <div class="form-group">
+                                   <label for="invite_field">Input nicknames of users to invite, separated by commas</label>
+                                   <div>
+                                       {{ invitationGroupForm.invite_field(style="width:100%") }}
+                                   </div>
+                                   {% for error in invitationGroupForm.invite_field.errors %}
+                                        <p class="help-block">[{{ error }}]</p><br>
+                                   {% endfor %}
+                               </div>
+                               <div class="form-group">
+                                   <div class="">
+                                       <input class="btn btn-primary" type="submit" value="Invite">
+                                   </div>
+                               </div>
+                           </form>
+                       </div>
+                   </div>
+               </div>
+
+
+           </div>
+         </div>
+       </div>
+
+        <div class="panel panel-default">
+         <div class="panel-heading" data-toggle="collapse" data-parent="#panel1" href="#deleteCollapse" style="cursor:pointer">
+           <h3 class="panel-title">
+             Delete Group <span class="glyphicon glyphicon-chevron-down pull-right" aria-hidden="true"></span>
+           </h3>
+         </div>
+         <div id="deleteCollapse" class="panel-collapse collapse">
+           <div class="panel-body">
+               <button class="btn btn-danger" data-toggle="collapse" href="#deleteConfirmCollapse" aria-expanded="false" aria-controls="deleteConfirmCollapse">Delete Group</button>
+               <p> </p>
+               <div class="collapse well" id="deleteConfirmCollapse">
+                   <p>Are you sure?</p>
+                   <a href="{{url_for('delete_group', group_name=group.name)}}" methods="post" class="btn btn-danger">Confirm</a>
+                   <a href="#deleteConfirmCollapse" data-toggle="collapse" aria-expanded="false" aria-controls="deleteConfirmCollapse" class="btn btn-default">Cancel</a>
+               </div>
+
+           </div>
+         </div>
+       </div>
+    </div>
+{% endblock %}

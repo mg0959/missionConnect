@@ -3,22 +3,61 @@
 
 {% block content %}
     {% include 'flash.html' %}
+    {% if g.user == group.creator %}
+        {% if group.joinRequested.count()>0 %}
+            {% for u in group.joinRequested.all() %}
+                <div class="alert alert-info">
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <strong><a href="{{url_for('user', nickname=u.nickname)}}">{{u.nickname}}</a></strong> has requested to join this group!
+                    <a href="{{url_for('acceptGroupJoinRequest', group_name=group.name, user_name=u.nickname)}}" class="btn btn-primary">Accept</a>
+                    <a href="{{url_for('declineGroupJoinRequest', group_name=group.name, user_name=u.nickname)}}" class="btn btn-danger">Decline</a>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% elif group.is_invited(g.user) %}
+        <div class="alert alert-info">
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            <strong>Hey You!</strong> You have been invited to join this group!
+            <a href="{{url_for('acceptGroupInvite', group_name=group.name)}}" class="btn btn-primary">Join</a>
+            <a href="{{url_for('declineGroupInvite', group_name=group.name)}}" class="btn btn-danger">Decline</a>
+        </div>
+    {% endif %}
     <div class="well well-lg">
         <div class="row text-center">
             <h1>{{ group.name }}</h1>
             <img  class="img-thumbnail" src="{{ group.avatar(70) }}" />
             <p></p>
-            <p><a href="{{url_for('groupFollowers', group_name=group.name)}}"> Followers: {{ group.followers.count() - group.members.count() }}</a> |
+            <p><a href="{{url_for('groupFollowers', group_name=group.name)}}"> Followers: {{ group.followers.count() - group.members.count() }}</a>
             {% if group.creator == g.user %}
-                <a href="{{url_for('manageGroup', group_name=group.name)}}">Manage this group</a>
+                | <a href="{{url_for('manageGroup', group_name=group.name)}}">Manage this group</a>
             {% elif g.user.is_group_member(group) %}
-                <a href="#">Unjoin</a>
+                | <a data-toggle="modal" data-target=".unjoin-modal-sm" style="cursor:pointer">Unjoin Group</a>
+
+                <div class="modal fade unjoin-modal-sm" tabindex="-1" role="dialog" aria-labelledby="unjoin confirmation" aria-hidden="true">
+                    <div class="modal-dialog modal-sm">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                                <h4 class="modal-title">Unjoin {{group.name}}?</h4>
+                            </div>
+                            <div class="modal-body">
+                                Are you sure you want to unjoin {{group.name}}?
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                                <a href="{{url_for('unjoinGroup', group_name=group.name)}}" class="btn btn-primary">Unjoin</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             {% else %}
-                <a href="#">Request to Join</a>
+                {% if not group.is_invited(g.user) and not g.user.has_requested_join(group) %}
+                    | <a href="{{url_for('requestJoinGroup', group_name=group.name)}}">Request to Join</a>
+                {% endif %}
                 {% if not g.user.is_group_follower(group) %}
-                | <a href="{{url_for('followGroup', group_name=group.name)}}">Follow</a>
+                    | <a href="{{url_for('followGroup', group_name=group.name)}}">Follow</a>
                 {% else %}
-                | <a href="{{url_for('unfollowGroup', group_name=group.name)}}">Unfollow</a>
+                    | <a href="{{url_for('unfollowGroup', group_name=group.name)}}">Unfollow</a>
                 {% endif %}
             {% endif %}
             </p>

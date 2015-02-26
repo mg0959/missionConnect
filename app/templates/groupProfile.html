@@ -1,0 +1,8 @@
+<div class="media row table">
+    <a class="media-left col-xs-1" href="{{ url_for('group', group_name=profile.name) }}"><img class="center-block img-rounded" src="{{ profile.avatar(70) }}" /></a>
+    <div class="media-body col-xs-11">
+        <div><a class="media-heading" href="{{ url_for('group', group_name=profile.name) }}">{{ profile.name }}</a></div>
+        {% if profile.about %}<div><em>About: </em>{{ profile.about }}</div>{% endif %}
+        <div><a href="{{ url_for('groupFollowers', group_name=profile.name)}}">Followers: {{ profile.onlyFollowers().count()}}</a></div>
+    </div>
+</div>

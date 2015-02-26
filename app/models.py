@@ -39,6 +39,9 @@ invitations = db.Table('invitations',
                        db.Column('invited_id', db.Integer, db.ForeignKey('user.id')),
                        db.Column('group_id', db.Integer, db.ForeignKey('group.id')))
 
+joinRequests = db.Table('joinRequests',
+                        db.Column('user_id', db.Integer, db.ForeignKey('user.id')),
+                        db.Column('group_id', db.Integer, db.ForeignKey('group.id')))
             
 
 class Group(db.Model):    
@@ -76,12 +79,12 @@ class Group(db.Model):
     def invite_user(self, user):
         if not self.is_invited(user):
             self.invited.append(user)
-            return self
+            return user
 
-    def unfollow_user(self, user):
+    def uninvite_user(self, user):
         if self.is_invited(user):
             self.invited.remove(user)
-            return self
+            return user
 
     def is_invited(self, user):
         return self.invited.filter(invitations.c.invited_id == user.id).count()>0
@@ -134,6 +137,12 @@ class User(db.Model):
                                secondaryjoin = (invitations.c.group_id == Group.id),
                                backref = db.backref('invited', lazy = 'dynamic'),
                                lazy = 'dynamic')
+    groupJoinRequests = db.relationship('Group',
+                               secondary = joinRequests,
+                               primaryjoin = (joinRequests.c.user_id == id),
+                               secondaryjoin = (joinRequests.c.group_id == Group.id),
+                               backref = db.backref('joinRequested', lazy = 'dynamic'),
+                               lazy = 'dynamic')
 
     # basic User property functions
     def is_authenticated(self):
@@ -184,6 +193,19 @@ class User(db.Model):
     def is_group_member(self, group):
         return self.groupMemberships.filter(members.c.group_id==group.id).count()>0
 
+    def request_join(self, group):
+        if not self.is_group_member(group):
+            self.groupJoinRequests.append(group)
+            return self
+
+    def remove_join_request(self, group):
+        if self.has_requested_join(group):
+            self.groupJoinRequests.remove(group)
+            return self
+
+    def has_requested_join(self, group):
+        return self.groupJoinRequests.filter(joinRequests.c.group_id==group.id).count()>0
+
     ############################
     # follow/unfollow groups
     ############################
@@ -202,7 +224,7 @@ class User(db.Model):
         return self.followedGroups.filter(groupFollowers.c.group_id==group.id).count()>0
 
     ############################
-    # get Posts
+    # get Posts and Notifications
     ############################
     
     def followed_user_posts(self):
@@ -229,6 +251,25 @@ class User(db.Model):
         # followed user posts alias
         afpAlias = db.aliased(Post, self.all_followed_posts().subquery())
         return Post.query.outerjoin(afpAlias, Post.id==afpAlias.id).filter(afpAlias.id == None).order_by(Post.timestamp.desc())
+
+    def get_notifications(self):
+        invites = self.groupInvitations.limit(10).all()
+        invite_count = self.groupInvitations.count()
+
+        # needs to be reworked...
+        joinRequestsGroups = []
+        for gr in self.groups:
+            if gr.joinRequested.count()>0:
+                joinRequestsGroups.append(gr)
+        joinRequestsGroups_count = len(joinRequestsGroups)
+
+        total_count = invite_count + joinRequestsGroups_count
+        return [total_count,
+                ('invite', invite_count, invites),
+                ('joinRequest', joinRequestsGroups_count, joinRequestsGroups)]
+
+    def get_member_groups(self):
+        return self.groupMemberships.order_by(Group.id.desc()).limit(5).all()
 
     ############################
     # User Profile Settings

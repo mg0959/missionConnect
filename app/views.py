@@ -2,7 +2,7 @@ from flask import render_template, flash, redirect, session, url_for, request, g
 from flask.ext.login import login_user, logout_user, current_user, login_required
 from datetime import datetime
 from app import app, db, lm, oid
-from forms import LoginForm, EditForm, PostForm, SearchForm, OpenidLoginForm, SignupForm, CreateGroupForm, EditGroupForm
+from forms import LoginForm, EditForm, PostForm, SearchForm, SignupForm, CreateGroupForm, EditGroupForm, InvitationGroupForm
 from models import User, ROLE_USER, ROLE_ADMIN, Post, GENERAL_POST, PRAYER_POST, Photo, Group
 from config import POSTS_PER_PAGE, MAX_SEARCH_RESULTS, DATABASE_QUERY_TIMEOUT, SQLALCHEMY_RECORD_QUERIES
 from config import UPLOAD_IMG_DIR, ALLOWED_EXTENSIONS
@@ -314,10 +314,11 @@ def groupFollowers(group_name, page=1):
         profiles = profiles)
 
 
-@app.route('/manageGroup/<group_name>', methods=['GET', 'POST'])
+@app.route('/manageGroup/<group_name>', methods=['GET'])
 @login_required
 def manageGroup(group_name):
     editGroupForm = EditGroupForm(group_name)
+    invitationGroupForm = InvitationGroupForm()
     group = Group.query.filter_by(name=group_name).first()
     if not group:
         flash("'"+group_name+"' does not exist!", 'error')
@@ -326,9 +327,30 @@ def manageGroup(group_name):
     if g.user != group.creator:
         flash("You are not authorized to manage the group '"+group_name+"'!", 'error')
         redirect(url_for('group', name=group_name))
-        
-    if request.method == 'POST': avatar_img_file = request.files[editGroupForm.avatar_img.name]
-    else: avatar_img_file = None
+
+    editGroupForm.name.data = group.name
+    editGroupForm.about.data = group.about
+
+    return render_template('manageGroup.html',
+        editGroupForm = editGroupForm,
+        invitationGroupForm = invitationGroupForm,
+        group = group)
+
+
+@app.route('/submitGroupEdits/<group_name>', methods=['POST'])
+@login_required
+def submitGroupEdits(group_name):
+    editGroupForm = EditGroupForm(group_name)
+    group = Group.query.filter_by(name=group_name).first()
+    if not group:
+        flash("'"+group_name+"' does not exist!", 'error')
+        redirect(url_for('home'))
+
+    if g.user != group.creator:
+        flash("You are not authorized to manage the group '"+group_name+"'!", 'error')
+        redirect(url_for('group', name=group_name))
+
+    avatar_img_file = request.files[editGroupForm.avatar_img.name]
 
     if editGroupForm.validate_on_submit(avatar_img_file):
         group.name = editGroupForm.name.data
@@ -351,31 +373,266 @@ def manageGroup(group_name):
             if oldPic: db.session.delete(oldPic)
             db.session.commit()
             if oldPic: oldPic.delete_files()
-            '''except:
-                db.session.rollback()
-                if oldPic:
-                    oldPic.isAvatar=True
-                    db.session.add(oldPic)
-                db.session.delete(pic)
-                db.session.commit()
-                flash('Unable to update photo.', 'error')'''
-                
+
         flash('Your changes have been saved.', 'info')
         return redirect(url_for('group', group_name=group_name))
     else:
-        editGroupForm.name.data = group.name
-        editGroupForm.about.data = group.about
-        
-    return render_template('manageGroup.html',
-        editGroupForm = editGroupForm,
-        group = group)
+        return redirect(url_for('manageGroup', group_name=group_name))
 
-##@app.route('/createGroup', methods=['POST'])
-##@login_required
-##def createGroup():
-##    if not g.search_form.validate_on_submit():
-##        return redirect(url_for('home'))
-##    return redirect(url_for('search_results', searchType=g.search_form.searchType.data, query=g.search_form.search.data))
+@app.route('/submitGroupInvites/<group_name>', methods=['POST'])
+@login_required
+def submitGroupInvites(group_name):
+    invitationGroupForm = InvitationGroupForm()
+    group = Group.query.filter_by(name=group_name).first()
+    if not group:
+        flash("'"+group_name+"' does not exist!", 'error')
+        redirect(url_for('home'))
+
+    if g.user != group.creator:
+        flash("You are not authorized to manage the group '"+group_name+"'!", 'error')
+        redirect(url_for('group', name=group_name))
+
+    invited_nicknames_str = invitationGroupForm.invite_field.data
+    invited_names = invited_nicknames_str.split(",")
+    for name in invited_names:
+        name = name.strip()
+        u = User.query.filter_by(nickname=name).first()
+        if not u:
+            flash("Unable to invite '"+name+"'; User does not exist", "error")
+        elif group.is_invited(u):
+            flash("'"+name+"' has already been invited to join "+group_name, "warning")
+        else:
+            u1 = group.invite_user(u)
+            if u1:
+                flash("'"+name+"' has been invited to join "+group_name, "info")
+                db.session.add(u1)
+                db.session.commit()
+            else:
+                flash("Unable to invite '"+name+"'", "error")
+    return redirect(url_for('manageGroup', group_name=group_name))
+
+@app.route('/acceptGroupInvite/<group_name>')
+@login_required
+def acceptGroupInvite(group_name):
+    gr = Group.query.filter_by(name=group_name).first()
+    if not gr:
+        flash(group_name+" does not exist!", "error")
+        return redirect(url_for('home'))
+
+    if not gr.is_invited(g.user):
+        flash("You have not been invited to join "+group_name+"!", "error")
+        return redirect(url_for('group', group_name=group_name))
+
+    u = g.user.join_group(gr)
+    u = gr.uninvite_user(u)
+    if not u:
+        flash("Unable to join "+group_name+"!", "error")
+        return redirect(url_for('group', group_name=group_name))
+
+    db.session.add(u)
+    db.session.add(gr)
+    db.session.commit()
+    flash("You have joined "+group_name+"!", "info")
+    return redirect(url_for('group', group_name=group_name))
+
+@app.route('/declineGroupInvite/<group_name>')
+@login_required
+def declineGroupInvite(group_name):
+    gr = Group.query.filter_by(name=group_name).first()
+    if not gr:
+        flash(group_name+" does not exist!", "error")
+        return redirect(url_for('home'))
+
+    if not gr.is_invited(g.user):
+        flash("You have not been invited to join "+group_name+"!", "error")
+        return redirect(url_for('group', group_name=group_name))
+
+    u = gr.uninvite_user(g.user)
+    if not u:
+        flash("Unable to decline invite to "+group_name+"!", "error")
+        return redirect(url_for('group', group_name=group_name))
+
+    db.session.add(u)
+    db.session.add(gr)
+    db.session.commit()
+    flash("You have declined to join "+group_name+"!", "info")
+    return redirect(url_for('group', group_name=group_name))
+
+@app.route('/unjoinGroup/<group_name>')
+@login_required
+def unjoinGroup(group_name):
+    gr = Group.query.filter_by(name=group_name).first()
+    if not gr:
+        flash(group_name+" does not exist!", "error")
+        return redirect(url_for('home'))
+
+    if not g.user.is_group_member(gr):
+        flash("You are not a member of "+group_name+"!", "error")
+        return redirect(url_for('group', group_name=group_name))
+
+    u = g.user.unjoin_group(gr)
+    if not u:
+        flash("Unable to unjoin "+group_name+"!", "error")
+        return redirect(url_for('group', group_name=group_name))
+
+    db.session.add(u)
+    db.session.add(gr)
+    db.session.commit()
+    flash("You have unjoined "+group_name+"!", "info")
+    return redirect(url_for('group', group_name=group_name))
+
+@app.route('/requestJoinGroup/<group_name>')
+@login_required
+def requestJoinGroup(group_name):
+    gr = Group.query.filter_by(name=group_name).first()
+    if not gr:
+        flash('Cannot request to join; '+group_name+' does not exist!', 'error')
+        return redirect(url_for('home'))
+
+    if g.user.is_group_member(gr):
+        flash('You are already a member of '+group_name+'!', "error")
+        return redirect(url_for('group', group_name=group_name))
+
+    if gr.is_invited(g.user):
+        u = gr.uninvite_user(g.user)
+        if not u:
+            flash('You were previously invited... but something went wrong.', "error")
+            return redirect(url_for('group', group_name=group_name))
+        u = u.join_group(gr)
+        if not u:
+            flash('You were previously invited... but unable to join group.', "error")
+            return redirect(url_for('group', group_name=group_name))
+
+        db.session.add(u)
+        db.session.add(gr)
+        db.session.commit()
+        flash('You were previously invited. Invitation accepted!', "success")
+        return redirect(url_for('group', group_name=group_name))
+
+    if g.user.has_requested_join(gr):
+        flash('You have already requested to join '+group_name+'!', 'error')
+        return redirect(url_for('group', group_name=group_name))
+
+    u = g.user.request_join(gr)
+    if not u:
+        flash("Unable to request to join group.", "error")
+        return redirect(url_for('group', group_name=group_name))
+    db.session.add(u)
+    db.session.add(gr)
+    db.session.commit()
+    flash("You have requested to join "+group_name+"!", "info")
+    return redirect(url_for('group', group_name=group_name))
+
+
+@app.route('/acceptGroupJoinRequest/<group_name>/<user_name>')
+@login_required
+def acceptGroupJoinRequest(group_name, user_name):
+    gr = Group.query.filter_by(name=group_name).first()
+    if not gr:
+        flash("Unable to accept join request; the group "+group_name+" does not exist!", "error")
+        return redirect(url_for('home'))
+
+    u_requested = User.query.filter_by(nickname=user_name).first()
+    if not u_requested:
+        flash("Unable to accept join request; the user "+user_name+" does not exist!", "error")
+        return redirect(url_for('group', group_name=group_name))
+
+    if not u_requested.has_requested_join(gr):
+        flash("Unable to accept join request; "+user_name+" has not requested to join the group!", "error")
+        return redirect(url_for('group', group_name=group_name))
+
+    if gr.creator != g.user:
+        flash("You are not authorized to accept join requests for this group!", "error")
+        return redirect(url_for('group', group_name=group_name))
+
+    u1 = u_requested.join_group(gr)
+    if not u1:
+        flash('Unable to join '+u_requested.nickname+' to '+group_name+'!', "error")
+        return redirect(url_for('group', group_name=group_name))
+    if gr.is_invited(u1):
+        u1 = gr.uninvite_user(u1)
+        if not u1:
+            flash('Unable to join '+u_requested.nickname+' to '+group_name+'! Group invite could not be cleared.', "error")
+            return redirect(url_for('group', group_name=group_name))
+    u2 = u1.remove_join_request(gr)
+    if not u2:
+        flash("Unable to remove join request", "error")
+        return redirect(url_for('group', group_name=group_name))
+
+    db.session.add(u2)
+    db.session.add(gr)
+    db.session.commit()
+    flash(user_name+"'s join request has been accepted!", "info")
+    return redirect(url_for('group', group_name=group_name))
+
+@app.route('/declineGroupJoinRequest/<group_name>/<user_name>')
+@login_required
+def declineGroupJoinRequest(group_name, user_name):
+    gr = Group.query.filter_by(name=group_name).first()
+    if not gr:
+        flash("Unable to decline join request; the group "+group_name+" does not exist!", "error")
+        return redirect(url_for('home'))
+
+    u_requested = User.query.filter_by(nickname=user_name).first()
+    if not u_requested:
+        flash("Unable to decline join request; the user "+user_name+" does not exist!", "error")
+        return redirect(url_for('group', group_name=group_name))
+
+    if not u_requested.has_requested_join(gr):
+        flash("Unable to decline join request; "+user_name+" has not requested to join the group!", "error")
+        return redirect(url_for('group', group_name=group_name))
+
+    if gr.creator != g.user:
+        flash("You are not authorized to decline join requests for this group!", "error")
+        return redirect(url_for('group', group_name=group_name))
+
+    u1 = u_requested.remove_join_request(gr)
+    if not u1:
+        flash("Unable to remove join request", "error")
+        return redirect(url_for('group', group_name=group_name))
+
+    db.session.add(u1)
+    db.session.add(gr)
+    db.session.commit()
+    flash(user_name+"'s join request has been declined.", "info")
+    return redirect(url_for('group', group_name=group_name))
+
+
+@app.route('/createGroup', methods=['POST'])
+@login_required
+def createGroup():
+    if not g.new_group_form.validate_on_submit():
+        flash("Unable to create group", "error")
+        return redirect(url_for('home'))
+
+    gr_name = g.new_group_form.name.data.strip()
+    if Group.query.filter_by(name=gr_name).first():
+        flash("Ubable to create group. Choose another name. "+gr_name+" already exists", "error")
+        return redirect(url_for('home'))
+
+    gr = Group(name=gr_name, creator=g.user)
+    db.session.add(gr)
+    db.session.commit()
+    flash("Group successfully created!", "info")
+    return redirect(url_for('group', group_name=gr_name))
+
+@app.route('/deleteGroup/<group_name>', methods=['GET'])
+@login_required
+def delete_group(group_name):
+    gr = Group.query.filter_by(name=group_name).first()
+    if not gr:
+        flash("Unable to delete group. '"+group_name+"' does not exist!", "error")
+        return redirect(url_for('home'))
+
+    if g.user != gr.creator:
+        flash("You are not authorized to delete this group!", "error")
+        return redirect(url_for('group', group_name=group_name))
+
+
+    db.session.delete(gr)
+    db.session.commit()
+    flash("Group successfully deleted.", "info")
+    return redirect(url_for('home'))
 
 @app.route('/followGroup/<group_name>')
 @login_required
@@ -444,6 +701,7 @@ def pray(page = 1):
 @login_required
 def search():
     if not g.search_form.validate_on_submit():
+        flash('Unable to complete search!', "error")
         return redirect(url_for('home'))
     return redirect(url_for('search_results', searchType=g.search_form.searchType.data, query=g.search_form.search.data))
 
@@ -520,31 +778,6 @@ def uploaded_file(filename):
 def load_user(id):
     return User.query.get(int(id))
 
-
-@oid.after_login
-def after_oidlogin(resp):
-    if resp.email is None or resp.email == "":
-        flash('Invalid login. Please try again.', 'error')
-        return redirect(url_for('login'))
-    user = User.query.filter_by(email = resp.email).first()
-    if user is None:
-        nickname = resp.nickname
-        if nickname is None or nickname == "":
-            nickname = resp.email.split('@')[0]
-        nickname = User.make_unique_nickname(nickname)
-        user = User(nickname = nickname, email = resp.email, role = ROLE_USER)
-        db.session.add(user)
-        db.session.commit()
-        # make the user follow him/herself
-        db.session.add(user.follow_user(user))
-        db.session.commit()
-    remember_me = False
-    if 'remember_me' in session:
-        remember_me = session['remember_me']
-        session.pop('remember_me', None)
-    login_user(user, remember = remember_me)
-    return redirect(request.args.get('next') or url_for('home'))
-
 @app.before_request
 def before_request():
     g.user = current_user
@@ -553,6 +786,8 @@ def before_request():
         db.session.add(g.user)
         db.session.commit()
         g.search_form = SearchForm()
+        g.new_group_form= EditGroupForm(None)
+        g.notifications = g.user.get_notifications()
         
 @app.after_request
 def after_request(response):

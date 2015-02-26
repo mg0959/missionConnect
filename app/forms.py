@@ -1,7 +1,7 @@
 from flask.ext.wtf import Form
 from wtforms import TextField, BooleanField, TextAreaField, StringField, RadioField, FileField, HiddenField
 from wtforms.validators import Length, DataRequired
-from app.models import User, Photo
+from app.models import User, Photo, Group
 
 IMAGE_EXT = ['jpg', 'tif', 'png']
 
@@ -107,3 +107,6 @@ class EditGroupForm(Form):
         a shortcut, equivalent to ``form.is_submitted() and form.validate()``
         """
         return self.is_submitted() and self.validate(avatar_img_file=avatar_img_file)
+
+class InvitationGroupForm(Form):
+    invite_field = TextAreaField('invite_field')

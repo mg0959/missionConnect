@@ -70,13 +70,45 @@
             <li {% if page=="explore" %}class="active"{% endif %}><a href="{{ url_for('explore')}}">Explore</a></li>
             <li {% if page=="pray" %}class="active"{% endif %}><a href="{{ url_for('pray')}}">Pray</a></li>
             <li {% if page=="user" %}class="active"{% endif %}><a href="{{ url_for('user', nickname=g.user.nickname) }}">My Profile</a></li>
-            <li class="dropdown {% if page=="group" %}active{% endif %}">
+            <li class="dropdown {% if page=='group' %}active{% endif %}">
               <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Groups <span class="caret"></span></a>
-              <ul class="dropdown-menu" role="menu">
-                <li><a href="#">Create Group</a></li>
+              <ul class="dropdown-menu dropdown-menu-input" role="menu">
+                <li id="createGroupOption">
+                    <a href="#" data-toggle="modal" data-target="#newGroupModal" style="cursor:pointer">Create Group</a>
+                </li>
                 <li class="divider"></li>
-                <li><a href="#">Group 1</a></li>
-                <li><a href="#">Group 2</a></li>                
+                  {% for gr in g.user.get_member_groups() %}
+                    <li><a href="{{ url_for('group', group_name=gr.name) }}">{{gr.name}}</a></li>
+                  {% endfor %}
+              </ul>
+            </li>
+            <li>
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Notifications <span class="badge">{{g.notifications[0]}}</span> <span class="caret"></span></a>
+              <ul class="dropdown-menu" role="menu">
+                  {% if g.notifications[0] < 1 %}
+                    <li role="presentation" class="dropdown-header">No new notifications</li>
+                  {% else %}
+                    {% for note_tup in g.notifications[1:] %}
+                        {% if (note_tup[0] == "invite") and (note_tup[1]>0) %}
+                            <li role="presentation" class="dropdown-header">Invited to join...</li>
+                            <li role="presentation" class="divider"></li>
+                            {% for group in note_tup[2] %}
+                              <li>
+                                  <a href="{{url_for('group', group_name=group.name)}}">{{group.name}}</a>
+                              </li>
+                            {% endfor %}
+                        {% endif %}
+                        {% if (note_tup[0] == "joinRequest") and (note_tup[1]>0) %}
+                            <li role="presentation" class="dropdown-header">Requests to join...</li>
+                            <li role="presentation" class="divider"></li>
+                            {% for group in note_tup[2] %}
+                              <li>
+                                  <a href="{{url_for('group', group_name=group.name)}}">{{group.name}}</a>
+                              </li>
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+                  {% endif %}
               </ul>
             </li>
           </ul>
@@ -117,7 +149,37 @@
         </div><!-- /.navbar-collapse -->
       </div><!-- /.container-fluid -->
     </nav>
-    
+
+    {% if g.user.is_authenticated() %}
+    <div class="modal fade" id="newGroupModal" tabindex="-1" role="dialog" aria-labelledby="newGroupModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            <h4 class="modal-title">Create a New Group</h4>
+          </div>
+          <div class="modal-body">
+              <form class="form-horizontal" action="{{url_for('createGroup')}}" method="post" id="newGroupForm">
+                  {{ g.new_group_form.hidden_tag() }}
+                  <div class="form-group">
+                      <label class="col-sm-5 control-label" for="name">Group Name</label>
+                       <div class="col-sm-7">
+                           {{ g.new_group_form.name(size=30, class="form-control") }}
+                           {% for error in g.new_group_form.name.errors %}
+                                <p class="help-inline">[{{ error }}]</p><br>
+                           {% endfor %}
+                       </div>
+                   </div>
+              </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            <button type="submit" class="btn btn-primary" form="newGroupForm">Create Group</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
     
     <div class="container">
       <div class="row">
