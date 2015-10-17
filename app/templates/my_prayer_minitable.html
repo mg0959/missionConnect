@@ -1,0 +1,37 @@
+<div class="well" style="background: #77DD77; border-radius: 25px;">
+    <h2>
+        My Prayer List
+        <br>
+        <a href="{{url_for('myPrayerList')}}"><small>See the full list</small></a>
+    </h2>
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th class="col-xs-3">When</th>
+                <th class="col-xs-1">By</th>
+                <th class="col-xs-7">Pray</th>
+                <th class="col-xs-1">Status</th>
+            </tr>
+        </thead>
+        {% if prayerListPosts.count() > 0 %}
+            <tbody>
+            {% for prayerPost in prayerListPosts %}
+                <tr>
+                    <td>{{ momentjs(prayerPost.timestamp).calendar() }}</td>
+                    <td><a href="{{ url_for('user', nickname=prayerPost.author.nickname) }}" style="color: #2C3646;">{{ prayerPost.author.nickname }}</a></td>
+                    <td>{% if prayerPost.body|length > 30 %}
+                            {{ prayerPost.body[:30]}}...
+                        {% else %}
+                            {{ prayerPost.body }}
+                        {% endif %}
+                    </td>
+                    <td>Open</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+            </table>
+        {% else %}
+            </table>
+            <a href="pray">Your prayer list is empty!  Add some prayers</a>
+        {% endif %}
+</div>

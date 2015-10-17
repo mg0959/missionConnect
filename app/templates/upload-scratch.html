@@ -1,0 +1,329 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+
+{% block content %}
+
+<div>
+    <input type="file" id="fileElem" multiple accept="image/*" style="display:none" onchange="myHandleFiles(this.files)">
+    <a href="#" class="btn btn-success" id="fileSelect">Select Photos</a>
+    <a href="#" class="btn btn-primary" id="uploadAllBtn">Upload All</a>
+</div>
+<div id="progressBar" class="progress" style="margin-top:20px"></div>
+<div id="preview"></div>
+
+
+
+
+<!-- Modal -->
+<div class="modal fade" id="imgEditModal" tabindex="-1" role="dialog" aria-labelledby="imgEditModal" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="myModalLabel">Edit Photo</h4>
+      </div>
+      <div class="modal-body">
+          <div style="text-align: center; height: 50px;">
+              <a class="btn btn-default" href="javascript:rotateImg();">Rotate</a>
+          </div>
+          <div style="text-align: center">
+              <canvas id="imgCanvas"></canvas>
+          </div>
+          <div id="feedback"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        <a class="btn btn-primary" id="saveBtn">Save changes</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="text/javascript">
+    var MAX_HEIGHT = 500;
+    var MAX_WIDTH = MAX_HEIGHT;
+
+
+    var currentAngle = 0;
+
+    window.URL = window.URL || window.webkitURL;
+
+    var fileSelect = document.getElementById("fileSelect"),
+        fileElem = document.getElementById("fileElem"),
+        fileList = document.getElementById("fileList");
+
+    fileSelect.addEventListener("click", function (e) {
+      if (fileElem) {
+        fileElem.click();
+      }
+      e.preventDefault(); // prevent navigation to "#"
+    }, false);
+
+    var uploadAllBtn = document.getElementById("uploadAllBtn");
+    uploadAllBtn.addEventListener("click", function (e) {
+      uploadAll();
+      e.preventDefault(); // prevent navigation to "#"
+    }, false);
+
+    $('body').on('click', 'a.disabled', function(event) {
+        event.preventDefault();
+    });
+
+    function myHandleFiles(f_list){
+        var preview = document.getElementById("preview");
+        $.each(f_list, function( index, file ) {
+            var imageType = /^image\//;
+
+            if (imageType.test(file.type)) {
+                var holderDiv = document.createElement("div");
+                var subHolderDiv = document.createElement("div");
+                var imgDiv = document.createElement("div");
+                var linkDiv = document.createElement("div");
+                var img = document.createElement("img");
+                var editLink = document.createElement("a");
+                var uploadLink = document.createElement("a");
+
+                holderDiv.classList.add("col-md-3", "col-sm-4", "col-xs-6");
+                subHolderDiv.classList.add("thumb_holder", "row");
+
+                imgDiv.classList.add("row", "thumb_div");
+                linkDiv.classList.add("row");
+
+                imgID = get_unique_upload_id();
+                editLink.href = "javascript:openEditModal('"+imgID+"');"
+                uploadLink.href = "javascript:removeImg('"+imgID+"');"
+                uploadLink.classList.add("btn", "btn-default");
+                uploadLink.id = imgID + "_upload";
+
+                img.classList.add("thumb_img", "img-responsive", "center-block");
+                img.file = file;
+                img.name = "uploadImg"
+                img.id = imgID;
+
+                preview.appendChild(holderDiv);
+                holderDiv.appendChild(subHolderDiv);
+                subHolderDiv.appendChild(imgDiv);
+                imgDiv.appendChild(editLink);
+                editLink.appendChild(img);
+                holderDiv.appendChild(linkDiv);
+                linkDiv.appendChild(uploadLink);
+
+                uploadLink.appendChild(document.createTextNode("close"));
+
+                var reader = new FileReader();
+                reader.onload = (function(anImg) {
+                    return function(e) {
+                        anImg.src = e.target.result
+                        };
+                    })(img);
+                reader.readAsDataURL(file);
+
+                }
+
+            else {alert("'"+file.name+"' not an image!");}
+        });
+    }
+
+    function get_unique_upload_id(){
+        var names = document.getElementsByName("uploadImg");
+        new_id = "uploadObj"+names.length;
+        return new_id;
+    }
+
+    function loadImgToCanvas(imgSrc, canvasEl, max_width_canvas, max_height_canvas){
+        var myImage = new Image();
+        var canvas = canvasEl;
+        var context = canvas.getContext('2d');
+        myImage.src = imgSrc;
+
+        var width = myImage.width;
+        var height = myImage.height;
+
+        if (width > height) {
+          if (width > max_width_canvas) {
+            height *= max_width_canvas / width;
+            width = max_width_canvas;
+          }
+        } else {
+          if (height > max_height_canvas) {
+            width *= max_height_canvas / height;
+            height = max_height_canvas;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        canvas.imgSrc = imgSrc;
+        canvas.currentAngle = 0
+
+        context.save();
+        context.translate(canvas.width/2, canvas.height/2);
+        context.drawImage(myImage, -width/2, -height/2, width, height);
+        context.restore();
+
+    }
+
+    function openEditModal(imgId){
+        var img = document.getElementById(imgId);
+        var canvas = document.getElementById("imgCanvas");
+
+        var saveBtn = document.getElementById("saveBtn");
+        saveBtn.href = "javascript:saveCanvasImg('"+imgId+"');"
+        imgSrc = img.src;
+
+        loadImgToCanvas(imgSrc, canvas, MAX_WIDTH, MAX_HEIGHT);
+
+        $('#imgEditModal').modal('show')
+    }
+
+    function rotateImg(){
+        var canvas = document.getElementById("imgCanvas");
+        var context = canvas.getContext('2d');
+        var myImage = new Image();
+
+        myImage.src = canvas.imgSrc;
+
+        var width = myImage.width;
+        var height = myImage.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.currentAngle += 90;
+        var holder = canvas.width;
+        canvas.width = canvas.height;
+        canvas.height = holder;
+        context.clearRect( 0 , 0 , canvas.width, canvas.height );
+        context.save();
+        context.translate(canvas.width/2, canvas.height/2);
+        context.rotate((canvas.currentAngle)*3.14/180);
+        context.drawImage(myImage, -width/2, -height/2, width, height);
+        context.restore();
+    }
+
+    function saveCanvasImg(imgID){
+        var canvas = document.getElementById("imgCanvas");
+        var img = document.getElementById(imgID);
+
+        img.src = canvas.toDataURL("image/png", 1.0);
+
+        $('#imgEditModal').modal('hide');
+    }
+
+    function uploadImg(imgID, uploadAmount){
+        var img = document.getElementById(imgID);
+        var uploadLink = document.getElementById(imgID+"_upload");
+        var canvas = document.getElementById("imgCanvas");
+
+        var myImage = new Image();
+        myImage.src = img.src
+
+        uploadLink.innerText = "Uploading...";
+
+        var context = canvas.getContext('2d');
+
+        var width = myImage.width;
+        var height = myImage.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width
+        canvas.height = height
+        context.drawImage(img, 0, 0, width, height);
+        daraUrlStr = canvas.toDataURL("image/png", 1.0);
+
+        $.post("{{url_for('uploadImg')}}", {
+          imgDataUrl: daraUrlStr
+          }
+        ).done(function(o) {
+            uploadLink.innerHTML = "Upload Complete";
+            uploadLink.classList.remove("btn-default");
+            uploadLink.classList.add("btn-success", "disabled");
+            uploadLink.href = "javascript: void(0);"
+            uploadProgress("pass", uploadAmount);
+
+        }).fail(function(o) {
+            uploadLink.innerHTML = "Upload Failed";
+            uploadLink.classList.remove("btn-default");
+            uploadLink.classList.add("btn-danger", "disabled");
+            uploadLink.href = "javascript: void(0);"
+            uploadProgress("fail", uploadAmount);
+        });
+    }
+
+    function uploadAll(){
+        var imgEls = document.getElementsByName("uploadImg");
+        var uploadAllLink = document.getElementById("uploadAllBtn");
+
+        $("#fileSelect").addClass("disabled");
+
+        uploadAllLink.innerHTML = "Uploading...";
+        uploadAllLink.classList.remove("btn-primary");
+        uploadAllLink.classList.add("btn-default", "disabled");
+
+        uploadAmount = 1/imgEls.length*100;
+
+        $.each(imgEls, function( index, value ) {
+            uploadImg(value.id, uploadAmount);
+        });
+
+        uploadAllLink.innerHTML = "Done";
+        uploadAllLink.classList.remove("btn-primary");
+        uploadAllLink.classList.add("btn-default", "disabled");
+    }
+
+    function removeImg(imgId){
+        $("#"+imgId).parents()[3].remove();
+    }
+
+    function uploadProgress(result, amount){
+        var progressUpdate = document.createElement("div")
+        progressUpdate.setAttribute("style","width:"+amount+"%")
+        if (result == "pass"){
+            progressUpdate.classList.add("progress-bar", "progress-bar-success", "progress-bar-striped");
+        }
+        else {
+            progressUpdate.classList.add("progress-bar", "progress-bar-danger", "progress-bar-striped");
+        }
+        $("#progressBar").append(progressUpdate);
+    }
+
+</script>
+
+<style>
+    .thumb_holder {}
+
+    .thumb_div {
+    margin-top: 10px;
+    margin-bottom: 10px;
+    }
+
+    .thumb_img{
+    display: inline-block;
+    vertical-align: middle;
+    max-width: 200px;
+    max-height: 200px;
+    }
+
+
+</style>
+
+{% endblock %}

@@ -1,0 +1,86 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+
+{% block content %}
+
+    {% include 'flash.html' %}
+    <h1>My Prayer List</h1>
+    <hr>
+    <div class="row">
+        <table class="table table-hover table-responsive row">
+            <thead>
+                <tr>
+                    <th class="col-xs-3 col-md-2">When</th>
+                    <th class="col-xs-1 col-md-1">By</th>
+                    <th class="col-xs-7 col-md-7">Pray</th>
+                    <th class="col-xs-1 col-md-1">Status</th>
+                    <th class="col-xs-1 col-md-1"></th>
+
+                </tr>
+            </thead>
+            <tbody>
+            {% if prayerListPosts.items|length > 0 %}
+                {% for prayerPost in prayerListPosts.items %}
+                    <tr id="prayerRow{{prayerPost.id}}">
+                        <td>{{ momentjs(prayerPost.timestamp).calendar() }}</td>
+                        <td><a href="{{ url_for('user', nickname=prayerPost.author.nickname) }}" style="color: #2C3646;">{{ prayerPost.author.nickname }}</a></td>
+                        <td>
+                            {{ prayerPost.body }}
+                        </td>
+                        <td>Open</td>
+                        <td class="text-center"><a href="javascript:confirmRemovalModal('{{prayerPost.id}}')"><span class="glyphicon glyphicon-trash text-danger" aria-hidden="true"></span></a></td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+            </table>
+            {% else %}
+                </table>
+                <a href="{{url_for('pray')}}">Your prayer list is empty!  Add some prayers</a>
+            {% endif %}
+
+        <ul class="pager">
+            {% if prayerListPosts.has_prev %}
+            <li class="previous"><a href="{{ url_for('home', page=prayerListPosts.prev_num) }}">Newer posts</a></li>
+            {% else %}
+            <li class="previous disabled"><a href="#">Newer posts</a></li>
+            {% endif %}
+            {% if prayerListPosts.has_next %}
+            <li class="next"><a href="{{ url_for('home', page=prayerListPosts.next_num) }}">Older posts</a></li>
+            {% else %}
+            <li class="next disabled"><a href="#">Older posts</a></li>
+            {% endif %}
+        </ul>
+    </div>
+
+<div id="dataConfirmModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="dataConfirmLabel" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button class="close" aria-label="Close" data-dismiss="modal" type="button" id="dataConfirmModalCloseBtn"><span aria-hidden="true">&times;</span></button>
+                <h4 id="dataConfirmLabel" class="modal-title">Please Confirm</h4>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to remove this prayer?
+            </div>
+            <div class="modal-footer">
+                <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
+                <a class="btn btn-primary" id="dataConfirmOK">OK</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+    function confirmRemovalModal(postId){
+            var yesBtn = document.getElementById("dataConfirmOK");
+            yesBtn.href = "javascript:removePrayer('"+postId+"');"
+            $('#dataConfirmModal').modal('show')
+        }
+
+    function removePrayer(postId){
+        ajaxRemovePrayingUser(postId);
+        $('#dataConfirmModal').modal('hide');
+    }
+</script>
+
+{% endblock %}

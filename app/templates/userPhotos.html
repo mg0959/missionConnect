@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1><a href="{{ url_for('user', nickname=user.nickname) }}"><img class="img-rounded" src="{{ user.avatar(70) }}" /></a> <a href="{{ url_for('user', nickname=user.nickname) }}">{{ user.nickname }}</a> 's Photos:</h1>
+
+<hr>
+<div id="photosDiv", class="row">
+{% for photo in photos.items %}
+     <div class="col-xs-12 col-sm-6 col-md-4"> <img src="{{photo.src()}}" class="img-responsive userPhoto"> </div>
+{% endfor %}
+</div>
+
+<br>
+<ul class="pager">
+    {% if photos.has_prev %}
+    <li class="previous"><a href="{{ url_for('userPhotos', nickname=user.nickname, page=photos.prev_num) }}">Newer posts</a></li>
+    {% else %}
+    <li class="previous disabled"><a href="#">Newer posts</a></li>
+    {% endif %}
+    {% if photos.has_next %}
+    <li class="next"><a href="{{ url_for('userPhotos', nickname=user.nickname, page=photos.next_num) }}">Older posts</a></li>
+    {% else %}
+    <li class="next disabled"><a href="#">Older posts</a></li>
+    {% endif %}
+</ul>
+
+<style>
+    .userPhoto {
+        max-height: 50%;
+        margin: 0 auto;
+    }
+</style>
+
+{% endblock %}
+

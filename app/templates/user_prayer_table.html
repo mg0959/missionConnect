@@ -1,0 +1,63 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+
+{% block content %}
+
+    {% include 'flash.html' %}
+    <h1>{{user.nickname}}'s Prayer List</h1>
+    <hr>
+    <div class="row">
+        <table class="table table-hover table-responsive row">
+            <thead>
+                <tr>
+                    <th class="col-xs-3 col-md-2">When</th>
+                    <th class="col-xs-1 col-md-1">By</th>
+                    <th class="col-xs-6 col-md-7">Pray</th>
+                    <th class="col-xs-1 col-md-1">Status</th>
+                    <th class="col-xs-1 col-md-1"></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% if prayerListPosts.items|length > 0 %}
+                {% for prayerPost in prayerListPosts.items %}
+                    <tr id="prayerRow{{prayerPost.id}}">
+                        <td>{{ momentjs(prayerPost.timestamp).calendar() }}</td>
+                        <td><a href="{{ url_for('user', nickname=prayerPost.author.nickname) }}" style="color: #2C3646;">{{ prayerPost.author.nickname }}</a></td>
+                        <td>
+                            {{ prayerPost.body }}
+                        </td>
+                        <td>Open</td>
+                        <td>
+                            {% if (prayerPost.is_PrayingUser(g.user)) %}
+                                <a id="addPrayerLink{{post.id}}" class="btn btn-success btn-xs disabled" href="#"><span class="glyphicon glyphicon-ok" aria-hidden="true"></span> I'm Praying</a>
+                            {% else %}
+                                <a href="javascript:ajaxAddPrayingUser('{{prayerPost.id}}');" id="addPrayerLink{{prayerPost.id}}" class="btn btn-default btn-xs"><span class="glyphicon glyphicon-plus" aria-hidden="true"></span> I Will Pray</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+            </table>
+            {% else %}
+                </table>
+                {% if user == g.user %}
+                    <a href="{{url_for('pray')}}">Your prayer list is empty!  Add some prayers</a>
+                {% else %}
+                    {{user.nickname}}'s prayer list is empty.
+                {% endif %}
+            {% endif %}
+
+        <ul class="pager">
+            {% if prayerListPosts.has_prev %}
+            <li class="previous"><a href="{{ url_for('home', page=prayerListPosts.prev_num) }}">Newer posts</a></li>
+            {% else %}
+            <li class="previous disabled"><a href="#">Newer posts</a></li>
+            {% endif %}
+            {% if prayerListPosts.has_next %}
+            <li class="next"><a href="{{ url_for('home', page=prayerListPosts.next_num) }}">Older posts</a></li>
+            {% else %}
+            <li class="next disabled"><a href="#">Older posts</a></li>
+            {% endif %}
+        </ul>
+    </div>
+{% endblock %}
