@@ -7,21 +7,37 @@
     
     {% include 'flash.html' %}    
     <hr>
-    
-    {% for post in posts.items %}
-        {% include 'post.html' %}
-    {% endfor %}
-    
-    <ul class="pager">
-        {% if posts.has_prev %}
-        <li class="previous"><a href="{{ url_for('home', page=posts.prev_num) }}">Newer posts</a></li>
-        {% else %}
-        <li class="previous disabled"><a href="#">Newer posts</a></li>
-        {% endif %}
-        {% if posts.has_next %}
-        <li class="next"><a href="{{ url_for('home', page=posts.next_num) }}">Older posts</a></li>
-        {% else %}
-        <li class="next disabled"><a href="#">Older posts</a></li>
-        {% endif %}
-    </ul>
+
+
+    <div class="row">
+        <div class="col-xs-12 col-sm-6 col-sm-push-6 col-md-5 col-md-push-7">
+            <div class="row">
+                {% include 'my_prayer_minitable.html' %}
+            </div>
+            <div class="row">
+                <!-- YouVersion Biible App-->
+                <iframe src="https://www.bible.com/bible/jhn.3.esv" height="700" width="100%" style="border-top-left-radius: 25px; border-bottom-left-radius: 25px; border-color: #D3D3D3; border-style: solid;"></iframe>
+            </div>
+            <hr>
+        </div>
+        <div class="col-xs-12 col-sm-6 col-sm-pull-6 col-md-7 col-md-pull-5">
+            <!--Posts-->
+            {% for post in posts.items %}
+                {% include 'post.html' %}
+            {% endfor %}
+
+            <ul class="pager">
+                {% if posts.has_prev %}
+                <li class="previous"><a href="{{ url_for('home', page=posts.prev_num) }}">Newer posts</a></li>
+                {% else %}
+                <li class="previous disabled"><a href="#">Newer posts</a></li>
+                {% endif %}
+                {% if posts.has_next %}
+                <li class="next"><a href="{{ url_for('home', page=posts.next_num) }}">Older posts</a></li>
+                {% else %}
+                <li class="next disabled"><a href="#">Older posts</a></li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
 {% endblock %}

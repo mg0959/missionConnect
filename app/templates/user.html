@@ -2,41 +2,58 @@
 {% extends "base.html" %}
 
 {% block content %}
-    {% include 'flash.html' %}
-    <div class="well well-lg">
-        <div class="pull-right">
-            <img src="{{ user.avatar(128) }}" class="img-thumbnail">
-        </div>
-        <h1>{{ user.nickname }}</h1>
-        {% if user.about_me %}<p>{{ user.about_me }}</p>{% endif %}
-        {% if user.last_seen %}<p><em>Last seen: {{ momentjs(user.last_seen).calendar() }}</em></p>{% endif %}
-        <p><a href="{{ url_for('followers', nickname=user.nickname)}}">Followers: {{ user.followers.count() - 1 }}</a> | <a href="{{ url_for('following', nickname=user.nickname)}}">Following: {{ user.followed.count() - 1 }}</a> |
-        {% if user.id == g.user.id %}
-            <a href="{{url_for('edit')}}">Edit your profile</a>
-        {% elif not g.user.is_following(user) %}
-            <a href="{{url_for('followUser', nickname=user.nickname)}}">Follow</a>
-        {% else %}
-            <a href="{{url_for('unfollowUser', nickname=user.nickname)}}">Unfollow</a>
-        {% endif %}
-        </p>
+{% include 'flash.html' %}
+
+<div class="well well-lg row">
+    <div class="pull-right">
+        <img src="{{ user.avatar(128) }}" class="img-thumbnail">
     </div>
+    <h1>{{ user.nickname }}</h1>
+    {% if user.about_me %}<p>{{ user.about_me }}</p>{% endif %}
+    {% if user.last_seen %}<p><em>Last seen: {{ momentjs(user.last_seen).calendar() }}</em></p>{% endif %}
+    <p><a href="{{ url_for('followers', nickname=user.nickname)}}">Followers: {{ user.followers.count() - 1 }}</a> | <a href="{{ url_for('following', nickname=user.nickname)}}">Following: {{ user.followed.count() - 1 }}</a> |
+    {% if user.id == g.user.id %}
+        <a href="{{url_for('edit')}}">Edit your profile</a> | <a href="{{url_for('myPrayerList')}}">Go to My Prayer List</a>
+    {% elif not g.user.is_following(user) %}
+        <a href="{{url_for('followUser', nickname=user.nickname)}}">Follow</a>
+    {% else %}
+        <a href="{{url_for('unfollowUser', nickname=user.nickname)}}">Unfollow</a>
+    {% endif %}
+    </p>
+    <hr>
+    <a href="{{url_for('userPhotos', nickname=user.nickname)}}">{{user.nickname}}'s Photos</a> <br>
+    <a href="{{url_for('userPrayerList', nickname=user.nickname)}}">{{user.nickname}}'s Prayers</a>
+
+</div>
+
+<div class="row">
     {% if user.id == g.user.id%}
         {% include 'post_input.html' %}
     {% endif %}
-    
-    {% for post in posts.items %}
-        {% include 'post.html' %}
-    {% endfor %}
-    <ul class="pager">
-        {% if posts.has_prev %}
-        <li class="previous"><a href="{{ url_for('user', nickname=user.nickname, page=posts.prev_num) }}">Newer posts</a></li>
-        {% else %}
-        <li class="previous disabled"><a href="#">Newer posts</a></li>
-        {% endif %}
-        {% if posts.has_next %}
-        <li class="next"><a href="{{ url_for('user', nickname=user.nickname, page=posts.next_num) }}">Older posts</a></li>
-        {% else %}
-        <li class="next disabled"><a href="#">Older posts</a></li>
-        {% endif %}
-    </ul>
+</div>
+<div class="row">
+    <div class="col-xs-12 col-sm-6 col-sm-push-6 col-md-5 col-md-push-7">
+        <div class="row">
+            {% include 'user_prayer_minitable.html' %}
+        </div>
+        <hr>
+    </div>
+    <div class="col-xs-12 col-sm-6 col-sm-pull-6 col-md-7 col-md-pull-5">
+        {% for post in posts.items %}
+            {% include 'post.html' %}
+        {% endfor %}
+        <ul class="pager">
+            {% if posts.has_prev %}
+            <li class="previous"><a href="{{ url_for('user', nickname=user.nickname, page=posts.prev_num) }}">Newer posts</a></li>
+            {% else %}
+            <li class="previous disabled"><a href="#">Newer posts</a></li>
+            {% endif %}
+            {% if posts.has_next %}
+            <li class="next"><a href="{{ url_for('user', nickname=user.nickname, page=posts.next_num) }}">Older posts</a></li>
+            {% else %}
+            <li class="next disabled"><a href="#">Older posts</a></li>
+            {% endif %}
+        </ul>
+    </div>
+</div>
 {% endblock %}

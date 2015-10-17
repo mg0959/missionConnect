@@ -19,6 +19,11 @@ ROLE_USER = 0
 ROLE_ADMIN = 1
 ROLE_MISSIONARY = 2
 
+#Post types
+GENERAL_POST = 1
+ENCOURAGEMENT = 2
+PRAYER_POST = 3
+
 followers = db.Table('followers',
                     db.Column('follower_id', db.Integer, db.ForeignKey('user.id')),
                     db.Column('followed_id', db.Integer, db.ForeignKey('user.id')))
@@ -42,6 +47,10 @@ invitations = db.Table('invitations',
 joinRequests = db.Table('joinRequests',
                         db.Column('user_id', db.Integer, db.ForeignKey('user.id')),
                         db.Column('group_id', db.Integer, db.ForeignKey('group.id')))
+
+prayerList = db.Table('prayerList',
+                      db.Column('post_id', db.Integer, db.ForeignKey('post.id')),
+                      db.Column('user_id', db.Integer, db.ForeignKey('user.id')))
             
 
 class Group(db.Model):    
@@ -132,18 +141,17 @@ class User(db.Model):
                                      backref = db.backref('followers', lazy='dynamic'),
                                      lazy='dynamic')
     groupInvitations = db.relationship('Group',
-                               secondary = invitations,
-                               primaryjoin = (invitations.c.invited_id == id),
-                               secondaryjoin = (invitations.c.group_id == Group.id),
-                               backref = db.backref('invited', lazy = 'dynamic'),
-                               lazy = 'dynamic')
+                                       secondary = invitations,
+                                       primaryjoin = (invitations.c.invited_id == id),
+                                       secondaryjoin = (invitations.c.group_id == Group.id),
+                                       backref = db.backref('invited', lazy = 'dynamic'),
+                                       lazy = 'dynamic')
     groupJoinRequests = db.relationship('Group',
-                               secondary = joinRequests,
-                               primaryjoin = (joinRequests.c.user_id == id),
-                               secondaryjoin = (joinRequests.c.group_id == Group.id),
-                               backref = db.backref('joinRequested', lazy = 'dynamic'),
-                               lazy = 'dynamic')
-
+                                       secondary = joinRequests,
+                                       primaryjoin = (joinRequests.c.user_id == id),
+                                       secondaryjoin = (joinRequests.c.group_id == Group.id),
+                                       backref = db.backref('joinRequested', lazy = 'dynamic'),
+                                       lazy = 'dynamic')
     # basic User property functions
     def is_authenticated(self):
         return True
@@ -271,6 +279,12 @@ class User(db.Model):
     def get_member_groups(self):
         return self.groupMemberships.order_by(Group.id.desc()).limit(5).all()
 
+    def get_prayerListEntries(self):
+        return self.prayerListEntries.order_by(Post.timestamp.desc())
+
+    def get_prayers(self):
+        return self.posts.filter(Post.postType==PRAYER_POST).order_by(Post.timestamp.desc())
+
     ############################
     # User Profile Settings
     ############################
@@ -329,13 +343,7 @@ class User(db.Model):
         # uuid is used to generate a random number
         salt = uuid.uuid4().hex
         return hashlib.sha224(salt.encode() + password.encode()).hexdigest() + ':' + salt
-   
 
-#Post types
-GENERAL_POST = 1
-ENCOURAGEMENT = 2
-PRAYER_POST = 3
-BLOG_POST = 4
 
 class Post(db.Model):
     __searchable__ = ['body']
@@ -347,6 +355,27 @@ class Post(db.Model):
     postType = db.Column(db.SmallInteger, default = GENERAL_POST)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     group_id = db.Column(db.Integer, db.ForeignKey('group.id'))
+    photos = db.relationship('Photo', backref = 'post', lazy = 'dynamic')
+
+    prayingUsers = db.relationship('User',
+                                    secondary = prayerList,
+                                    primaryjoin = (prayerList.c.post_id == id),
+                                    secondaryjoin = (prayerList.c.user_id == User.id),
+                                    backref = db.backref('prayerListEntries', lazy = 'dynamic'),
+                                    lazy = 'dynamic')
+
+    def is_PrayingUser(self, user):
+        return self.prayingUsers.filter(prayerList.c.user_id == user.id).count()>0
+
+    def addPrayingUser(self, user):
+        if not self.is_PrayingUser(user):
+            self.prayingUsers.append(user)
+        return self
+
+    def removePrayingUser(self, user):
+        if self.is_PrayingUser(user):
+            self.prayingUsers.remove(user)
+        return self
 
     def __repr__(self): # pragma: no cover
         return '<Post %r>' % (self.body)
@@ -355,13 +384,14 @@ class Post(db.Model):
     def getPrayer():
         return Post.query.filter(Post.postType == PRAYER_POST)
 
+
 class Photo(db.Model):
     id = db.Column(db.Integer, primary_key = True)
     fname = db.Column(db.String(100))
     timestamp = db.Column(db.DateTime)
     caption =db.Column(db.String(140), default = "")
-    isAvatar = db.Column(db.Boolean, default = False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    post_id = db.Column(db.Integer, db.ForeignKey('post.id'))
 
     def make_thumb(self, size):
         fpath = os.path.join(UPLOAD_IMG_DIR, self.fname)
@@ -372,7 +402,10 @@ class Photo(db.Model):
     def delete_files(self):
         fpath = os.path.join(UPLOAD_IMG_DIR, self.fname.split(".")[0])
         for f in glob.glob((fpath+"*")):
-            os.remove(f)      
+            os.remove(f)
+
+    def src(self):
+        return url_for('.static', filename='img/userImages/'+self.fname)
         
     def __repr__(self): # pragma: no cover
         return '<Photo %r>' % (self.fname)

@@ -63,13 +63,13 @@
             </p>
         </div>
         <div class="row">
-            {% if group.about %}<div class="col-xs-5"><b>About Group: </b>{{ group.about }}</div>{% endif %}
-            <div class='pull-right col-xs-4'>
+            {% if group.about %}<div class="col-xs-12 col-md-8"><b>About Group: </b>{{ group.about }}</div>{% endif %}
+            <div class='col-xs-12 col-md-4'>
                 <table>
                     <tr>
                         <td class="col-md-6 text-right">
                            <b>Group Admin: </b><br>
-                            <a href="{{ url_for('user', nickname=group.creator.nickname) }}">{{ group.creator.nickname }}</a> 
+                            <a href="{{ url_for('user', nickname=group.creator.nickname) }}">{{ group.creator.nickname }}</a>
                         </td>
                         <td class="col-md-6 text-left">
                             <a href="{{ url_for('user', nickname=group.creator.nickname) }}"><img class="img-rounded" src="{{ group.creator.avatar(70) }}" /></a>
@@ -78,24 +78,24 @@
                 </table>
             </div>
         </div>
-        
+
         <hr style="height:1px;border:none;color: #808080 ;background-color:#808080;"/>
         <h3>Members: {{ group.members.count() }}</h3>
         <div class="row">
             {% for profile in group.members.all() %}
-                <div class="col-xs-4">
+                <div class="col-xs-6 col-md-4">
                     {% include 'member.html' %}
                 </div>
             {% endfor %}
-            
+
         </div>
     </div>
-    
+
     {% if g.user.is_group_member(group) %}
         {% include 'post_input.html' %}
     {% endif %}
-    
-    
+
+
     {% for post in posts.items %}
         {% include 'post.html' %}
     {% endfor %}

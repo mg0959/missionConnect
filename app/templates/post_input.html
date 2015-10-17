@@ -6,31 +6,63 @@
 
 <style>div.btn > input[type='radio']{display:none;}</style>
 
-<div class="well">
-    <form class="form-inline" action="" method="post" name="post">
-        {{ form.hidden_tag() }}
-        <div class="form-group {% if form.post.errors or form.postType.errors %} error{% endif %}">
-            <label class="control-label" for="post">Say something:</label>
-            <div class="btn-group" data-toggle="buttons">
-                {% for choice in form.postType %}
-                    <div class="btn btn-default {% if choice.data == form.postType.data%}active{% endif %}">
-                    {{choice(id="radio"+loop.index|string, autocomplete="off")}}
-                    {{choice.label()}}
+
+<div class="panel-group" id="panel-post">
+
+    <!--Post text-->
+    <div class="panel panel-default">
+        <div class="panel-heading" data-toggle="collapse" data-parent="#panel-post" href="#postPanelCollapse" style="cursor:pointer">
+            <h3 class="panel-title">
+            <span class="glyphicon glyphicon-bullhorn" aria-hidden="true"></span> Say Something <span class="glyphicon glyphicon-chevron-down pull-right" aria-hidden="true"></span>
+            </h3>
+        </div>
+        <div id="postPanelCollapse" class="panel-collapse collapse in">
+            <div class="panel-body" >
+                <!--<div class="well">-->
+                <form class="form-inline" action="" method="post" name="post" >
+                {{ form.hidden_tag() }}
+                <div class="form-group {% if form.post.errors or form.postType.errors %} error{% endif %}">
+                    <label class="control-label" for="post">Say something:</label>
+                    <div class="btn-group" data-toggle="buttons">
+                    {% for choice in form.postType %}
+                        <div class="btn btn-default {% if choice.data == form.postType.data%}active{% endif %}">
+                        {{choice(id="radio"+loop.index|string, autocomplete="off")}}
+                        {{choice.label()}}
+                        </div>
+                    {% endfor %}
                     </div>
+                </div>
+                <div class="form-group">
+                    {{ form.post(size=140, maxlength=140, rows=1, cols=50, class="form-control commentarea") }}
+                </div>
+                <div class="form-group">
+                    <input class="btn btn-primary" type="submit" value="Post!">
+                </div>
+
+                {% for error in form.errors.post %}
+                <span class="help-inline">[{{ error }}]</span><br>
                 {% endfor %}
+                {% for error in form.errors.postType%}
+                <span class="help-inline">[{{ error }}]</span><br>
+                {% endfor %}
+                </form>
+                <!--</div>-->
             </div>
         </div>
-        <div class="form-group">
-            {{ form.post(size=140, maxlength=140, rows=1, cols=50, class="form-control commentarea") }}
+    </div>
+
+    <!--Post Photos-->
+    <div class="panel panel-default">
+        <div class="panel-heading" data-toggle="collapse" data-parent="#panel-post" href="#photoPanelCollapse" style="cursor:pointer">
+            <h3 class="panel-title">
+            <span class="glyphicon glyphicon-camera" aria-hidden="true"></span> Show Something <span class="glyphicon glyphicon-chevron-down pull-right" aria-hidden="true"></span>
+            </h3>
         </div>
-        <div class="form-group">
-           <input class="btn btn-primary" type="submit" value="Post!">
+        <div id="photoPanelCollapse" class="panel-collapse collapse">
+            <div class="panel-body">
+                {% include "upload_photo_template.html" %}
+            </div>
         </div>
-        {% for error in form.errors.post %}
-            <span class="help-inline">[{{ error }}]</span><br>
-        {% endfor %}
-        {% for error in form.errors.postType%}
-            <span class="help-inline">[{{ error }}]</span><br>
-        {% endfor %}
-    </form>
+    </div>
+
 </div>

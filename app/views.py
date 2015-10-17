@@ -9,7 +9,8 @@ from config import UPLOAD_IMG_DIR, ALLOWED_EXTENSIONS
 from emails import follower_notification, signup_notification
 from flask.ext.sqlalchemy import get_debug_queries
 from werkzeug import secure_filename
-import os
+import json
+import os, base64
 
 
 @app.route('/')
@@ -27,8 +28,16 @@ def atMC():
 def home(page=1, theme=None):    
     #only followed posts
     posts = g.user.all_followed_posts().paginate(page, POSTS_PER_PAGE, False)
+    prayerListPosts = g.user.get_prayerListEntries().limit(POSTS_PER_PAGE)
     
-    return render_template('home.html', title = 'Home', posts = posts, page = 'home', theme=theme)
+    return render_template('home.html', title = 'Home', posts = posts, page = 'home', theme=theme, prayerListPosts=prayerListPosts)
+
+@app.route('/myprayerList')
+@app.route('/myprayerList/<int:page>')
+@login_required
+def myPrayerList(page=1):
+    prayerListPosts = g.user.get_prayerListEntries().paginate(page, POSTS_PER_PAGE, False)
+    return render_template('my_prayer_table.html', prayerListPosts=prayerListPosts, user=user, page = 'user')
 
 @app.route('/login', methods = ['GET', 'POST'])
 def login():
@@ -125,7 +134,7 @@ def register():
     
 
 @app.route('/user/<nickname>', methods=['GET', 'POST'])
-@app.route('/user/<nickname>/<int:page>', methods=['GET', 'POST'])
+@app.route('/user/<nickname>/posts/<int:page>', methods=['GET', 'POST'])
 @login_required
 def user(nickname, page=1):    
     user = User.query.filter_by(nickname = nickname).first()
@@ -148,11 +157,28 @@ def user(nickname, page=1):
     form.postType.data = GENERAL_POST
     
     posts = user.posts.order_by(Post.timestamp.desc()).paginate(page, POSTS_PER_PAGE, False)
+    prayerListPosts = user.get_prayers().limit(POSTS_PER_PAGE)
     return render_template('user.html',
-        user = user,
-        form=form,
-        posts = posts,
-        page='user')
+                           user = user,
+                           form=form,
+                           posts = posts,
+                           prayerListPosts = prayerListPosts,
+                           page='user')
+
+@app.route('/user/<nickname>/photos', methods=['GET', 'POST'])
+@app.route('/user/<nickname>/photos/<int:page>', methods=['GET'])
+@login_required
+def userPhotos(nickname, page=1):
+    user = User.query.filter_by(nickname = nickname).first()
+    if user == None:
+        flash('User ' + nickname + ' not found.', 'error')
+        return redirect(url_for('home'))
+
+    photos = user.photos.order_by(Photo.timestamp.desc()).paginate(page, POSTS_PER_PAGE, False)
+    return render_template('userPhotos.html',
+                           user = user,
+                           photos=photos,
+                           page='user')
 
 @app.route('/edit', methods = ['GET', 'POST'])
 @login_required
@@ -266,6 +292,17 @@ def following(nickname, page=1):
     return render_template('following.html',
         user = user,
         profiles = profiles)
+
+@app.route('/user/<nickname>/prayerList')
+@app.route('/user/<nickname>/prayerList/<int:page>')
+@login_required
+def userPrayerList(nickname, page=1):
+    user = User.query.filter_by(nickname = nickname).first()
+    if user == None:
+        flash('User' + nickname + ' not found.', 'error')
+        redirect(url_for('home'))
+    prayerListPosts = user.get_prayers().paginate(page, POSTS_PER_PAGE, False)
+    return render_template('user_prayer_table.html', prayerListPosts=prayerListPosts, user=user, page = 'user')
 
 ########################################
 # Group Function Views
@@ -751,13 +788,41 @@ def updatePost():
     app.logger.info('Post updated.')
     return jsonify({'response':'success'})
 
+@app.route('/ajax/addPrayingUser', methods=['POST'])
+@login_required
+def addPrayingUser():
+    app.logger.info('Adding praying user...')
+    postId = int(request.form['postObjId'])
+    post = Post.query.get(postId)
+    post.addPrayingUser(g.user)
+    db.session.add(post)
+    db.session.add(g.user)
+    db.session.commit()
+    app.logger.info(g.user.nickname+" added as a praying user to post #"+str(postId))
+    return jsonify({'response':'success'})
+
+@app.route('/ajax/removePrayingUser', methods=['POST'])
+@login_required
+def removePrayingUser():
+    app.logger.info('Removing praying user...')
+    postId = int(request.form['postObjId'])
+    post = Post.query.get(postId)
+    post.removePrayingUser(g.user)
+    db.session.add(post)
+    db.session.add(g.user)
+    db.session.commit()
+    app.logger.info(g.user.nickname+" removed as a praying user to post #"+str(postId))
+    return jsonify({'response':'success'})
+
+
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
 
 
-@app.route('/upload', methods=['GET', 'POST'])
-def upload():
+@app.route('/upload_test', methods=['GET'])
+@login_required
+def upload_test():
     if request.method == 'POST':
         saved_files_urls = []
         for key, f in request.files.iteritems():
@@ -767,8 +832,73 @@ def upload():
                 saved_files_urls.append(url_for('uploaded_file', filename=filename))
         return saved_files_urls[0]
         #return redirect(url_for('home'))
-    return render_template('upload.html',
-                           title = 'Upload')
+    return render_template('upload-scratch.html',
+                           title = 'Upload'
+                           )
+
+@app.route('/uploadImg', methods=['POST'])
+@login_required
+def uploadImg():
+    imgBase64 = request.form['imgDataUrl']
+    includePost = request.form['includePost']
+    postId = request.form['postId']
+    print "Include Post:", includePost
+    print "PostId", postId
+    img = base64.b64decode(imgBase64.split(",")[-1])
+
+    if includePost == "true":
+        print "including post..."
+        pic = Photo(fname = "", timestamp = datetime.utcnow(), owner = g.user, post_id=(int(postId)))
+    else:
+        print "no post... only photo"
+        pic = Photo(fname = "", timestamp = datetime.utcnow(), owner = g.user)
+    db.session.add(pic)
+    db.session.commit()
+    pic.fname = (str(pic.id)+".png")
+    db.session.add(pic)
+    db.session.commit()
+    with open(os.path.join(UPLOAD_IMG_DIR, pic.fname), "wb") as f:
+        f.write(img)
+    return jsonify({'response':'success'})
+
+@app.route('/getImgPost')
+@login_required
+def getImgPost():
+    p = Post(body = "", timestamp = datetime.utcnow(), author = g.user)
+    db.session.add(p)
+    db.session.commit()
+    print "postId:", p.id
+    return jsonify({'post_id':p.id})
+
+@app.route('/upload', methods=['POST'])
+def upload():
+    results = []
+    for key, f in request.files.iteritems():
+        print "key, f", key, f
+        if f and allowed_file(f.filename):
+            result = {}
+            filename = secure_filename(f.filename)
+            f.save(os.path.join(UPLOAD_IMG_DIR, filename))
+            find_url = url_for('uploaded_file', filename=filename)
+            result['name']=filename
+            result['url']=find_url
+
+            results.append(result)
+            print 'result', result
+    print results
+    return jsonify({'files': results})
+
+@app.route('/json_test')
+def json_test():
+    results = []
+    r1 = {}
+    r1['name']="bill"
+    r1['url']="a_place.com"
+    r2 = {}
+    r2['name']="Lar"
+    results.append(r1)
+    results.append(r2)
+    return jsonify({'files':results})
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):

@@ -8,7 +8,6 @@ $(document).ready(function() {
 
 });
 
-
 function testAJAX() {
   $.post('{{url_for("AJAX_test")}}', {}).done(function(args){
     alert(args['response']);
@@ -77,15 +76,42 @@ function updateSearchType(hiddenTag, buttonTxt, selection) {
 }
 
 function setPostType(checkType, postId){
-        if (checkType == "1") {
-            $('#radioPost'+postId).prop("checked", true);
-            $('#PTVal'+postId).val("1");
+    if (checkType == "1") {
+        $('#radioPost'+postId).prop("checked", true);
+        $('#PTVal'+postId).val("1");
+    }
+    else {
+        if (checkType == "3") {
+            $('#radioPray'+postId).prop("checked", true);
+            $('#PTVal'+postId).val("3");
         }
-        else {
-            if (checkType == "3") {
-                $('#radioPray'+postId).prop("checked", true);
-                $('#PTVal'+postId).val("3");
-            }
-            else {alert("ERROR in setting postType")}
+        else {alert("ERROR in setting postType")}
+    }
+}
+
+
+function ajaxAddPrayingUser(postId){
+    $.post('{{url_for("addPrayingUser")}}', {
+    postObjId: postId
+    }).done(function(){
+        prayerLink = document.getElementById("addPrayerLink"+postId);
+        prayerLink.classList.remove("btn-default");
+        prayerLink.classList.add("disabled", "btn-success");
+        prayerLink.innerHTML = "<span class='glyphicon glyphicon-ok' aria-hidden='true'></span> I'm Praying";
         }
-      }
+    ).fail(function(){
+        alert("Error: Could not contact server.");}
+    );
+}
+
+function ajaxRemovePrayingUser(postId){
+    $.post('{{url_for("removePrayingUser")}}', {
+    postObjId: postId
+    }).done(function(){
+        prayerRow = document.getElementById("prayerRow"+postId);
+        prayerRow.parentNode.removeChild(prayerRow);
+        }
+    ).fail(function(){
+        alert("Error: Could not contact server.");}
+    );
+}
