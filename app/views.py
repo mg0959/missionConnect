@@ -192,12 +192,8 @@ def edit():
         db.session.add(g.user)
         db.session.commit()
         if form.avatar_img.data:
-            oldPic = g.user.photos.filter(Photo.isAvatar == True).first()
             f = request.files[form.avatar_img.name]
             pic = Photo(fname = "", timestamp = datetime.utcnow(), owner = g.user)
-            if oldPic:
-                oldPic.isAvatar = False
-                db.session.add(oldPic)
             db.session.add(pic)
             db.session.commit()
             #try:
@@ -206,17 +202,7 @@ def edit():
             g.user.set_avatar(pic)
             db.session.add(pic)
             db.session.add(g.user)
-            if oldPic: db.session.delete(oldPic)
             db.session.commit()
-            if oldPic: oldPic.delete_files()
-            '''except:
-                db.session.rollback()
-                if oldPic:
-                    oldPic.isAvatar=True
-                    db.session.add(oldPic)
-                db.session.delete(pic)
-                db.session.commit()
-                flash('Unable to update photo.', 'error')'''
                 
         flash('Your changes have been saved.', 'info')
         return redirect(url_for('user', nickname=g.user.nickname))
